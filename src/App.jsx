@@ -149,19 +149,18 @@ export default function App(){
     if(!mealInput.trim())return;
     setMealLoading(true);
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{"Content-Type":"application/json","x-api-key":import.meta.env.VITE_ANTHROPIC_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body:JSON.stringify({
-          model:"claude-haiku-4-5-20251001",
-          max_tokens:300,
-          messages:[{role:"user",content:`Estimate calories and macros for: "${mealInput}". Typical portion. Respond ONLY with JSON, no markdown: {"name":"short name","cal":number,"protein":number,"carbs":number,"fat":number}`}]
-        })
+      const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(mealInput)}`,{
+        headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}
       });
       const d=await res.json();
-      const text=d.content.map(i=>i.text||"").join("");
-      const parsed=JSON.parse(text.replace(/```json|```/g,"").trim());
-      const newMeal={id:Date.now(),name:parsed.name,cal:Math.round(parsed.cal),protein:Math.round(parsed.protein),carbs:Math.round(parsed.carbs),fat:Math.round(parsed.fat)};
+      if(!d.items||d.items.length===0)throw new Error("No results");
+      const totals=d.items.reduce((acc,item)=>({
+        cal:acc.cal+item.calories,
+        protein:acc.protein+item.protein_g,
+        carbs:acc.carbs+item.carbohydrates_total_g,
+        fat:acc.fat+item.fat_total_g
+      }),{cal:0,protein:0,carbs:0,fat:0});
+      const newMeal={id:Date.now(),name:mealInput.trim(),cal:Math.round(totals.cal),protein:Math.round(totals.protein),carbs:Math.round(totals.carbs),fat:Math.round(totals.fat)};
       const updated={...meals,[calDay]:[...calDayMeals,newMeal]};
       setMeals(updated);sv("dj3_meals",updated);setMealInput("");
     }catch(e){console.error(e);}
