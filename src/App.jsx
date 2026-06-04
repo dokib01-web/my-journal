@@ -349,7 +349,135 @@ function SettingsScreen({theme,setTheme,onBack,onSignOut,saveTheme}){
   );
 }
 
-function AuthScreen({onAuth}){
+function CalorieGoalScreen({calTarget,onSave,onBack}){
+  const [mode,setMode]=useState("simple");
+  const [simpleVal,setSimpleVal]=useState(calTarget);
+  const [age,setAge]=useState("");
+  const [gender,setGender]=useState("male");
+  const [height,setHeight]=useState("");
+  const [weight,setWeight]=useState("");
+  const [goalWeight,setGoalWeight]=useState("");
+  const [activity,setActivity]=useState("moderate");
+  const [result,setResult]=useState(null);
+
+  const ACTIVITY={sedentary:1.2,light:1.375,moderate:1.55,active:1.725,veryactive:1.9};
+  const ACTIVITY_LABELS={sedentary:"Sedentary",light:"Light",moderate:"Moderate",active:"Active",veryactive:"Very active"};
+
+  function calculate(){
+    const a=Number(age),h=Number(height),w=Number(weight),gw=Number(goalWeight);
+    if(!a||!h||!w||!gw)return;
+    const bmr=gender==="male"
+      ?(10*w)+(6.25*h)-(5*a)+5
+      :(10*w)+(6.25*h)-(5*a)-161;
+    const tdee=Math.round(bmr*ACTIVITY[activity]);
+    const diff=gw-w;
+    let target,note="";
+    if(Math.abs(diff)<1){
+      target=tdee;note="At maintenance — no surplus or deficit needed.";
+    } else if(diff<0){
+      const deficit=Math.min(1000,Math.round(Math.abs(diff)*200));
+      target=tdee-deficit;
+      if(deficit===1000)note="Capped at safe maximum deficit (−1000 kcal/day ≈ 1kg/week).";
+      else note=`Deficit of ${deficit} kcal/day to reach your goal.`;
+    } else {
+      const surplus=Math.min(500,Math.round(diff*200));
+      target=tdee+surplus;
+      if(surplus===500)note="Capped at safe maximum surplus (+500 kcal/day ≈ 0.5kg/week).";
+      else note=`Surplus of ${surplus} kcal/day to reach your goal.`;
+    }
+    target=Math.round(target/10)*10;
+    setResult({tdee,target,note});
+  }
+
+  const inputStyle={borderRadius:6,padding:"8px 10px",fontSize:14,color:"#111",background:"#fff",border:"1.5px solid #7F77DD",fontFamily:"system-ui,sans-serif",width:"100%",boxSizing:"border-box"};
+
+  return(
+    <div style={{fontFamily:"system-ui,sans-serif",padding:"12px 10px",maxWidth:480,margin:"0 auto",minHeight:"100vh",background:"#f5f5f5"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+        <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#333",padding:"2px 4px",lineHeight:1}}>←</button>
+        <span style={{fontSize:17,fontWeight:700,color:"#111"}}>Calorie goal</span>
+      </div>
+
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {[["simple","Set manually"],["calc","Calculate for me"]].map(([v,label])=>(
+          <button key={v} onClick={()=>setMode(v)} style={{flex:1,padding:"8px 4px",borderRadius:7,border:`2px solid ${mode===v?"#7F77DD":"#ddd"}`,background:mode===v?"#EEEDFE":"#fff",color:mode===v?"#26215C":"#555",cursor:"pointer",fontSize:12,fontWeight:mode===v?700:400}}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode==="simple"&&(
+        <div style={{background:"#EEEDFE",border:"2px solid #7F77DD",borderRadius:10,padding:"16px"}}>
+          <p style={{fontSize:13,color:"#26215C",marginBottom:10}}>Enter your daily calorie target:</p>
+          <input type="number" value={simpleVal} onChange={e=>setSimpleVal(Number(e.target.value))} style={{...inputStyle,fontSize:20,fontWeight:700,textAlign:"center",marginBottom:12}}/>
+          <button onClick={()=>onSave(Math.round(simpleVal/10)*10)} style={{...smBtn("#7F77DD","#26215C","#fff"),width:"100%",padding:"10px",fontSize:14}}>Save target</button>
+        </div>
+      )}
+
+      {mode==="calc"&&(
+        <div>
+          <div style={{background:"#EEEDFE",border:"2px solid #7F77DD",borderRadius:10,padding:"14px",marginBottom:10}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+              <div>
+                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Age</p>
+                <input type="number" placeholder="e.g. 25" value={age} onChange={e=>setAge(e.target.value)} style={inputStyle}/>
+              </div>
+              <div>
+                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Gender</p>
+                <div style={{display:"flex",gap:6}}>
+                  {["male","female"].map(g=>(
+                    <button key={g} onClick={()=>setGender(g)} style={{flex:1,padding:"8px 4px",borderRadius:6,border:`1.5px solid ${gender===g?"#7F77DD":"#ccc"}`,background:gender===g?"#7F77DD":"#fff",color:gender===g?"#fff":"#555",cursor:"pointer",fontSize:12,fontWeight:gender===g?700:400,textTransform:"capitalize"}}>
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Height (cm)</p>
+                <input type="number" placeholder="e.g. 178" value={height} onChange={e=>setHeight(e.target.value)} style={inputStyle}/>
+              </div>
+              <div>
+                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Current weight (kg)</p>
+                <input type="number" placeholder="e.g. 75" value={weight} onChange={e=>setWeight(e.target.value)} style={inputStyle}/>
+              </div>
+              <div>
+                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Goal weight (kg)</p>
+                <input type="number" placeholder="e.g. 68" value={goalWeight} onChange={e=>setGoalWeight(e.target.value)} style={inputStyle}/>
+              </div>
+              <div>
+                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Activity level</p>
+                <select value={activity} onChange={e=>setActivity(e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
+                  {Object.entries(ACTIVITY_LABELS).map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+            </div>
+            <button onClick={calculate} disabled={!age||!height||!weight||!goalWeight}
+              style={{...smBtn("#7F77DD","#26215C","#fff"),width:"100%",padding:"10px",fontSize:14,opacity:!age||!height||!weight||!goalWeight?0.5:1}}>
+              Calculate
+            </button>
+          </div>
+
+          {result&&(
+            <div style={{background:"#E1F5EE",border:"2px solid #1D9E75",borderRadius:10,padding:"14px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+                <span style={{fontSize:13,color:"#085041"}}>Your TDEE</span>
+                <span style={{fontSize:16,fontWeight:700,color:"#085041"}}>{result.tdee} kcal</span>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:10}}>
+                <span style={{fontSize:13,color:"#085041"}}>Suggested target</span>
+                <span style={{fontSize:24,fontWeight:700,color:"#085041"}}>{result.target} kcal</span>
+              </div>
+              {result.note&&<p style={{fontSize:12,color:"#085041",opacity:0.8,marginBottom:12}}>{result.note}</p>}
+              <button onClick={()=>onSave(result.target)} style={{...smBtn("#1D9E75","#085041","#fff"),width:"100%",padding:"10px",fontSize:14}}>
+                Apply {result.target} kcal as target
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
   const [mode,setMode]=useState("login");
   const [email,setEmail]=useState("");
   const [password,setPassword]=useState("");
@@ -610,6 +738,11 @@ function Journal({user,onSignOut}){
 
   if(!synced)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",fontFamily:"system-ui",color:"#888"}}>Syncing...</div>;
 
+  if(showCalGoal)return(
+    <CalorieGoalScreen calTarget={calTarget} onBack={()=>setShowCalGoal(false)}
+      onSave={val=>{setCalTarget(val);saveAndSync(K.calTarget,"caltarget",val);setShowCalGoal(false);}}/>
+  );
+
   if(showSettings)return(
     <SettingsScreen theme={theme} setTheme={setTheme} saveTheme={saveTheme}
       onBack={()=>setShowSettings(false)} onSignOut={onSignOut}/>
@@ -772,7 +905,7 @@ function Journal({user,onSignOut}){
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
               <span style={{fontSize:10,fontWeight:700}}>{isCalToday?"TODAY'S CALORIES":"CALORIES — "+new Date(calDay+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}).toUpperCase()}</span>
               {!editTarget
-                ?<span onClick={()=>{setTargetInput(calTarget);setEditTarget(true);}} style={{fontSize:10,fontWeight:700,cursor:"pointer",opacity:0.7}}>Target: {calTarget} kcal ✏️</span>
+                ?<span onClick={()=>setShowCalGoal(true)} style={{fontSize:10,fontWeight:700,cursor:"pointer",opacity:0.7}}>Target: {calTarget} kcal ✏️</span>
                 :<div style={{display:"flex",gap:4,alignItems:"center"}}>
                   <input type="number" value={targetInput} onChange={e=>setTargetInput(Number(e.target.value))} style={{width:70,borderRadius:5,border:`1.5px solid ${C("cal")}`,padding:"2px 6px",fontSize:12,fontWeight:700,color:darken(C("cal")),background:"#fff"}}/>
                   <button onClick={()=>{setCalTarget(targetInput);saveAndSync(K.calTarget,"caltarget",targetInput);setEditTarget(false);}} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("cal")}`,background:darken(C("cal")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>Save</button>
