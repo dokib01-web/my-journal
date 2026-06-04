@@ -173,13 +173,36 @@ export default function App(){
     if(!mealInput.trim())return;
     setMealLoading(true);
     try{
-      const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(mealInput)}`,{headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}});
-      const d=await res.json();
-      if(!d.items||d.items.length===0)throw new Error("No results");
-      const totals=d.items.reduce((acc,item)=>({cal:acc.cal+item.calories,protein:acc.protein+item.protein_g,carbs:acc.carbs+item.carbohydrates_total_g,fat:acc.fat+item.fat_total_g}),{cal:0,protein:0,carbs:0,fat:0});
-      const newMeal={id:Date.now(),name:mealInput.trim(),cal:Math.round(totals.cal),protein:Math.round(totals.protein),carbs:Math.round(totals.carbs),fat:Math.round(totals.fat)};
-      const updated={...meals,[calDay]:[...calDayMeals,newMeal]};
-      setMeals(updated);sv("dj3_meals",updated);setMealInput("");
+      const kcalMatch=mealInput.match(/(\d+(?:\.\d+)?)\s*(?:kcals?|cals?|calories?)/i);
+      if(kcalMatch){
+        const targetCal=parseFloat(kcalMatch[1]);
+        const foodName=mealInput.replace(/(\d+(?:\.\d+)?)\s*(?:kcals?|cals?|calories?)/i,"").trim();
+        const query=foodName||mealInput;
+        const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(query)}`,{headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}});
+        const d=await res.json();
+        let protein=0,carbs=0,fat=0;
+        if(d.items&&d.items.length>0){
+          const baseCal=d.items.reduce((a,x)=>a+x.calories,0);
+          const baseP=d.items.reduce((a,x)=>a+x.protein_g,0);
+          const baseC=d.items.reduce((a,x)=>a+x.carbohydrates_total_g,0);
+          const baseF=d.items.reduce((a,x)=>a+x.fat_total_g,0);
+          const ratio=baseCal>0?targetCal/baseCal:1;
+          protein=Math.round(baseP*ratio);
+          carbs=Math.round(baseC*ratio);
+          fat=Math.round(baseF*ratio);
+        }
+        const newMeal={id:Date.now(),name:foodName||mealInput,cal:Math.round(targetCal),protein,carbs,fat};
+        const updated={...meals,[calDay]:[...calDayMeals,newMeal]};
+        setMeals(updated);sv("dj3_meals",updated);setMealInput("");
+      } else {
+        const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(mealInput)}`,{headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}});
+        const d=await res.json();
+        if(!d.items||d.items.length===0)throw new Error("No results");
+        const totals=d.items.reduce((acc,item)=>({cal:acc.cal+item.calories,protein:acc.protein+item.protein_g,carbs:acc.carbs+item.carbohydrates_total_g,fat:acc.fat+item.fat_total_g}),{cal:0,protein:0,carbs:0,fat:0});
+        const newMeal={id:Date.now(),name:mealInput.trim(),cal:Math.round(totals.cal),protein:Math.round(totals.protein),carbs:Math.round(totals.carbs),fat:Math.round(totals.fat)};
+        const updated={...meals,[calDay]:[...calDayMeals,newMeal]};
+        setMeals(updated);sv("dj3_meals",updated);setMealInput("");
+      }
     }catch(e){console.error(e);}
     setMealLoading(false);
   }
@@ -382,7 +405,7 @@ export default function App(){
           <div style={card(P.greenL,P.green,P.greenD)}>
             <span style={{fontSize:10,fontWeight:700,display:"block",marginBottom:6}}>LOG A MEAL</span>
             <div style={{display:"flex",gap:6}}>
-              <input style={inpBase(P.green,"#fff")} placeholder='"a bowl of pasta"' value={mealInput} onChange={e=>setMealInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&logMeal()}/>
+              <input style={inpBase(P.green,"#fff")} placeholder='"pasta" or "240kcal chocolate"' value={mealInput} onChange={e=>setMealInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&logMeal()}/>
               <button onClick={logMeal} disabled={mealLoading||!mealInput.trim()} style={{...smBtn(P.green,P.greenD,"#fff"),opacity:mealLoading||!mealInput.trim()?0.5:1,minWidth:52}}>
                 {mealLoading?"...":"Log"}
               </button>
