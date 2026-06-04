@@ -46,6 +46,7 @@ const DEFAULT_THEME = {
 };
 
 function hsbToHex(h,s,b){
+  if(s===0){const v=Math.round(b/100*255);const hex=v.toString(16).padStart(2,"0");return `#${hex}${hex}${hex}`;}
   s/=100; b/=100;
   const k=n=>(n+h/60)%6;
   const f=n=>b-b*s*Math.max(0,Math.min(k(n),4-k(n),1));
@@ -643,8 +644,8 @@ function Journal({user,onSignOut}){
                     style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:7,marginBottom:editH?0:5,background:editH?(i%2===0?lighten(C("habits")):"rgba(0,0,0,0.05)"):done?C("habits")+"22":"transparent",border:editH?`1.5px solid ${C("habits")}`:`1.5px solid ${done?C("habits"):"transparent"}`,cursor:editH?"default":"pointer"}}>
                     {editH
                       ?<span onClick={()=>delHabit(i)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:18,lineHeight:1,minWidth:18}}>×</span>
-                      :<div style={{width:20,height:20,borderRadius:5,border:`2px solid ${done?C("habits"):darken(C("habits"))}`,background:done?C("habits"):"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                        {done&&<span style={{color:"#fff",fontSize:13,fontWeight:700}}>✓</span>}
+                      :<div style={{width:20,height:20,borderRadius:5,border:`2px solid ${blockStyles(C("habits"),S("habits")).text}`,background:done?C("habits"):"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        {done&&<span style={{color:blockStyles(C("habits"),S("habits")).text==="#ffffff"?"#fff":blockStyles(C("habits"),S("habits")).text==="#000000"?"#000":"#fff",fontSize:13,fontWeight:700}}>✓</span>}
                       </div>
                     }
                     <div style={{flex:1}}>
@@ -699,7 +700,7 @@ function Journal({user,onSignOut}){
           {todos.length===0&&<p style={{fontSize:13,opacity:0.6,margin:"0 0 8px"}}>Nothing here yet.</p>}
           {todos.map(t=>(
             <div key={t.id} onClick={()=>togTodo(t.id)} style={{display:"flex",alignItems:"center",gap:10,marginBottom:6,padding:"8px 10px",borderRadius:7,background:t.done?C("todos")+"22":"transparent",border:`1.5px solid ${t.done?C("todos"):"transparent"}`,cursor:"pointer"}}>
-              <div style={{width:20,height:20,borderRadius:5,border:`2px solid ${t.done?C("todos"):darken(C("todos"))}`,background:t.done?C("todos"):"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <div style={{width:20,height:20,borderRadius:5,border:`2px solid ${blockStyles(C("todos"),S("todos")).text}`,background:t.done?C("todos"):"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                 {t.done&&<span style={{color:"#fff",fontSize:13,fontWeight:700}}>✓</span>}
               </div>
               <span style={{flex:1,fontSize:13,fontWeight:500,textDecoration:t.done?"line-through":"none",opacity:t.done?0.6:1}}>{t.text}</span>
