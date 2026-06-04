@@ -229,6 +229,11 @@ export default function App(){
 
       {view==="today"&&(
         <div>
+          {todos.filter(t=>!t.done).length>0&&(
+            <div style={{...card(P.coralL,P.coral,P.coralD),textAlign:"center",marginBottom:8}}>
+              <span style={{fontSize:13,fontWeight:700}}>⚠️ You have {todos.filter(t=>!t.done).length} task{todos.filter(t=>!t.done).length>1?"s":""} to complete</span>
+            </div>
+          )}
           <div style={{...card(isToday?P.tealL:P.amberL,isToday?P.teal:P.amber,isToday?P.tealD:P.amberD),display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <button onClick={()=>shiftDay(-1)} style={smBtn(P.purple,P.purpleL,P.purpleD)}>← Back</button>
             <span style={{fontSize:12,fontWeight:700}}>{isToday?"Today":activeDateObj.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}</span>
