@@ -1,4 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 const MOODS = ["😞","😕","😐","🙂","😄"];
 const MOOD_LABELS = ["Rough","Not great","Okay","Good","Great"];
@@ -34,8 +40,11 @@ const CAT_COLORS = {
 function fmt(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
 function todayKey(){return fmt(new Date());}
 function getMonthKeys(y,m){const n=new Date(y,m+1,0).getDate();return Array.from({length:n},(_,i)=>`${y}-${String(m+1).padStart(2,"0")}-${String(i+1).padStart(2,"0")}`);}
+
+function ldk(uid,k){return `dj_${uid}_${k}`;}
 function ld(k,d){try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(d));}catch{return d;}}
 function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+
 function hasData(e){return e&&(e.mood!=null||e.note||Object.values(e.habits||{}).some(Boolean));}
 function calcStreak(data){let s=0,d=new Date();while(true){const k=fmt(d);if(hasData(data[k])){s++;d.setDate(d.getDate()-1);}else break;}return s;}
 function calcLongest(data){
@@ -45,13 +54,8 @@ function calcLongest(data){
   return best;
 }
 function getWeekDays(data,offset){
-  const d=new Date();
-  d.setDate(d.getDate()-d.getDay()+1-offset*7);
-  d.setHours(0,0,0,0);
-  return Array.from({length:7},(_,i)=>{
-    const day=new Date(d);day.setDate(d.getDate()+i);
-    const k=fmt(day);return{key:k,date:day,entry:data[k]||{}};
-  });
+  const d=new Date();d.setDate(d.getDate()-d.getDay()+1-offset*7);d.setHours(0,0,0,0);
+  return Array.from({length:7},(_,i)=>{const day=new Date(d);day.setDate(d.getDate()+i);const k=fmt(day);return{key:k,date:day,entry:data[k]||{}};});
 }
 function getLast7(data){return Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);const k=fmt(d);return{key:k,date:d,entry:data[k]||{}};});}
 function freqLabel(f){return f===7?"Daily":`${f}x/week`;}
@@ -62,15 +66,102 @@ const smBtn=(bc,bg,tc)=>({padding:"5px 10px",borderRadius:6,border:`2px solid ${
 const inpBase=(bc,bg)=>({borderRadius:6,padding:"6px 9px",fontSize:13,color:"#111",background:bg||"#fff",fontFamily:"system-ui,sans-serif",flex:1,minWidth:0,border:`2px solid ${bc}`});
 const selStyle=(bc,bg,tc)=>({borderRadius:5,border:`1.5px solid ${bc}`,background:bg,color:tc,padding:"3px 6px",fontSize:12,fontWeight:700,cursor:"pointer"});
 
+// Auth screen
+function AuthScreen({onAuth}){
+  const [mode,setMode]=useState("login");
+  const [email,setEmail]=useState("");
+  const [password,setPassword]=useState("");
+  const [error,setError]=useState("");
+  const [loading,setLoading]=useState(false);
+
+  async function handle(){
+    setLoading(true);setError("");
+    try{
+      let res;
+      if(mode==="login"){
+        res=await supabase.auth.signInWithPassword({email,password});
+      } else {
+        res=await supabase.auth.signUp({email,password});
+      }
+      if(res.error)throw res.error;
+      if(mode==="signup"&&res.data.user&&!res.data.session){
+        setError("Check your email to confirm your account.");
+        setLoading(false);return;
+      }
+      onAuth(res.data.user||res.data.session?.user);
+    }catch(e){setError(e.message);}
+    setLoading(false);
+  }
+
+  return(
+    <div style={{fontFamily:"system-ui,sans-serif",maxWidth:380,margin:"80px auto",padding:"0 20px"}}>
+      <h2 style={{fontSize:22,fontWeight:700,color:"#111",marginBottom:4}}>Daily journal</h2>
+      <p style={{fontSize:13,color:"#888",marginBottom:24}}>{mode==="login"?"Sign in to your account":"Create a new account"}</p>
+      <div style={card(P.purpleL,P.purple,P.purpleD)}>
+        <input style={{...inpBase(P.purple,"#fff"),display:"block",width:"100%",boxSizing:"border-box",marginBottom:10}} type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)}/>
+        <input style={{...inpBase(P.purple,"#fff"),display:"block",width:"100%",boxSizing:"border-box",marginBottom:10}} type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()}/>
+        {error&&<p style={{fontSize:12,color:P.coral,margin:"0 0 10px"}}>{error}</p>}
+        <button onClick={handle} disabled={loading||!email||!password} style={{...smBtn(P.purple,P.purpleD,"#fff"),width:"100%",padding:"10px",fontSize:14,opacity:loading||!email||!password?0.5:1}}>
+          {loading?"...":(mode==="login"?"Sign in":"Sign up")}
+        </button>
+      </div>
+      <p style={{fontSize:13,color:"#888",textAlign:"center",marginTop:16}}>
+        {mode==="login"?"Don't have an account? ":"Already have an account? "}
+        <span onClick={()=>{setMode(mode==="login"?"signup":"login");setError("");}} style={{color:P.purple,fontWeight:700,cursor:"pointer"}}>
+          {mode==="login"?"Sign up":"Sign in"}
+        </span>
+      </p>
+    </div>
+  );
+}
+
 export default function App(){
-  const [data,setData]           = useState(()=>ld("dj3_data",{}));
-  const [habits,setHabits]       = useState(()=>ld("dj3_habits",DEFAULT_HABITS));
-  const [todos,setTodos]         = useState(()=>ld("dj3_todos",[]));
-  const [quotes,setQuotes]       = useState(()=>ld("dj3_quotes",[]));
-  const [lyrics,setLyrics]       = useState(()=>ld("dj3_lyrics",[]));
-  const [memories,setMemories]   = useState(()=>ld("dj3_memories",[]));
-  const [meals,setMeals]         = useState(()=>ld("dj3_meals",{}));
-  const [calTarget,setCalTarget] = useState(()=>ld("dj3_caltarget",2200));
+  const [user,setUser]=useState(null);
+  const [authLoading,setAuthLoading]=useState(true);
+  const [syncing,setSyncing]=useState(false);
+
+  // Check existing session on load
+  useEffect(()=>{
+    supabase.auth.getSession().then(({data:{session}})=>{
+      if(session?.user)setUser(session.user);
+      setAuthLoading(false);
+    });
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>{
+      setUser(session?.user||null);
+    });
+    return()=>subscription.unsubscribe();
+  },[]);
+
+  if(authLoading)return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",fontFamily:"system-ui",color:"#888"}}>Loading...</div>;
+  if(!user)return <AuthScreen onAuth={setUser}/>;
+  return <Journal user={user} onSignOut={()=>supabase.auth.signOut()}/>;
+}
+
+function Journal({user,onSignOut}){
+  const uid = user.id;
+
+  // Namespaced localStorage keys
+  const K = {
+    data:    ldk(uid,"data"),
+    habits:  ldk(uid,"habits"),
+    todos:   ldk(uid,"todos"),
+    quotes:  ldk(uid,"quotes"),
+    lyrics:  ldk(uid,"lyrics"),
+    memories:ldk(uid,"memories"),
+    meals:   ldk(uid,"meals"),
+    calTarget:ldk(uid,"caltarget"),
+  };
+
+  const [data,setData]           = useState(()=>ld(K.data,{}));
+  const [habits,setHabits]       = useState(()=>ld(K.habits,DEFAULT_HABITS));
+  const [todos,setTodos]         = useState(()=>ld(K.todos,[]));
+  const [quotes,setQuotes]       = useState(()=>ld(K.quotes,[]));
+  const [lyrics,setLyrics]       = useState(()=>ld(K.lyrics,[]));
+  const [memories,setMemories]   = useState(()=>ld(K.memories,[]));
+  const [meals,setMeals]         = useState(()=>ld(K.meals,{}));
+  const [calTarget,setCalTarget] = useState(()=>ld(K.calTarget,2200));
+  const [synced,setSynced]       = useState(false);
+
   const [view,setView]           = useState("today");
   const [activeDay,setActiveDay] = useState(todayKey());
   const [calDay,setCalDay]       = useState(todayKey());
@@ -102,6 +193,63 @@ export default function App(){
   const [mealLoading,setMealLoading] = useState(false);
   const [editTarget,setEditTarget] = useState(false);
   const [targetInput,setTargetInput] = useState(2200);
+
+  // Sync helpers
+  async function syncToCloud(key,value){
+    try{
+      await supabase.from("journal_data").upsert({user_id:uid,key,value:JSON.stringify(value)},{onConflict:"user_id,key"});
+    }catch(e){console.error("Sync error",e);}
+  }
+
+  function saveAndSync(localKey,cloudKey,value){
+    sv(localKey,value);
+    syncToCloud(cloudKey,value);
+  }
+
+  // Pull from cloud on first load
+  useEffect(()=>{
+    async function pullFromCloud(){
+      try{
+        const{data:rows}=await supabase.from("journal_data").select("key,value").eq("user_id",uid);
+        if(!rows||rows.length===0){
+          // No cloud data — check for old non-namespaced data to migrate
+          const oldKeys=["dj3_data","dj3_habits","dj3_todos","dj3_quotes","dj3_lyrics","dj3_memories","dj3_meals","dj3_caltarget"];
+          const newKeyMap={dj3_data:"data",dj3_habits:"habits",dj3_todos:"todos",dj3_quotes:"quotes",dj3_lyrics:"lyrics",dj3_memories:"memories",dj3_meals:"meals",dj3_caltarget:"caltarget"};
+          for(const ok of oldKeys){
+            const raw=localStorage.getItem(ok);
+            if(raw){
+              const parsed=JSON.parse(raw);
+              sv(ldk(uid,newKeyMap[ok]),parsed);
+              syncToCloud(newKeyMap[ok],parsed);
+            }
+          }
+          // Reload state from newly migrated keys
+          setData(ld(K.data,{}));
+          setHabits(ld(K.habits,DEFAULT_HABITS));
+          setTodos(ld(K.todos,[]));
+          setQuotes(ld(K.quotes,[]));
+          setLyrics(ld(K.lyrics,[]));
+          setMemories(ld(K.memories,[]));
+          setMeals(ld(K.meals,{}));
+          setCalTarget(ld(K.calTarget,2200));
+        } else {
+          // Cloud data exists — load it into localStorage and state
+          const map={};
+          rows.forEach(r=>{map[r.key]=JSON.parse(r.value);});
+          if(map.data){sv(K.data,map.data);setData(map.data);}
+          if(map.habits){sv(K.habits,map.habits);setHabits(map.habits);}
+          if(map.todos){sv(K.todos,map.todos);setTodos(map.todos);}
+          if(map.quotes){sv(K.quotes,map.quotes);setQuotes(map.quotes);}
+          if(map.lyrics){sv(K.lyrics,map.lyrics);setLyrics(map.lyrics);}
+          if(map.memories){sv(K.memories,map.memories);setMemories(map.memories);}
+          if(map.meals){sv(K.meals,map.meals);setMeals(map.meals);}
+          if(map.caltarget!=null){sv(K.calTarget,map.caltarget);setCalTarget(map.caltarget);}
+        }
+      }catch(e){console.error("Pull error",e);}
+      setSynced(true);
+    }
+    pullFromCloud();
+  },[uid]);
 
   useEffect(()=>{
     let startX=0,startY=0;
@@ -144,24 +292,24 @@ export default function App(){
   const longest       = calcLongest(data);
   const totalLogged   = Object.keys(data).filter(k=>hasData(data[k])).length;
 
-  function upEntry(patch){const u={...data,[activeDay]:{...entry,...patch}};setData(u);sv("dj3_data",u);}
+  function upEntry(patch){const u={...data,[activeDay]:{...entry,...patch}};setData(u);saveAndSync(K.data,"data",u);}
   function shiftDay(n){const d=new Date(activeDay+"T12:00:00");d.setDate(d.getDate()+n);const t=new Date();t.setHours(23,59,59);if(d<=t)setActiveDay(fmt(d));}
   function shiftCalDay(n){const d=new Date(calDay+"T12:00:00");d.setDate(d.getDate()+n);const t=new Date();t.setHours(23,59,59);if(d<=t)setCalDay(fmt(d));}
-  function addHabit(){if(!newHabitName.trim())return;const h=[...habits,{name:newHabitName.trim(),freq:newHabitFreq}];setHabits(h);sv("dj3_habits",h);setNewHabitName("");setNewHabitFreq(7);}
-  function delHabit(i){const h=habits.filter((_,j)=>j!==i);setHabits(h);sv("dj3_habits",h);}
-  function updateHabitFreq(i,freq){const h=habits.map((x,j)=>j===i?{...x,freq}:x);setHabits(h);sv("dj3_habits",h);}
-  function moveHabit(i,dir){const h=[...habits];const to=i+dir;if(to<0||to>=h.length)return;[h[i],h[to]]=[h[to],h[i]];setHabits(h);sv("dj3_habits",h);}
-  function addTodo(){if(!newTodo.trim())return;const t=[...todos,{id:Date.now(),text:newTodo.trim(),done:false}];setTodos(t);sv("dj3_todos",t);setNewTodo("");}
-  function togTodo(id){const t=todos.map(x=>x.id===id?{...x,done:!x.done}:x);setTodos(t);sv("dj3_todos",t);}
-  function delTodo(id){const t=todos.filter(x=>x.id!==id);setTodos(t);sv("dj3_todos",t);}
-  function clearDone(){const t=todos.filter(x=>!x.done);setTodos(t);sv("dj3_todos",t);}
-  function addQuote(){if(!qText.trim())return;const q=[...quotes,{id:Date.now(),text:qText.trim(),author:qAuthor.trim(),cat:qCat}];setQuotes(q);sv("dj3_quotes",q);setQText("");setQAuthor("");setQCat("Uncategorized");}
-  function delQuote(id){const q=quotes.filter(x=>x.id!==id);setQuotes(q);sv("dj3_quotes",q);}
-  function addLyric(){if(!lText.trim()||!lSong.trim())return;const l=[...lyrics,{id:Date.now(),text:lText.trim(),song:lSong.trim(),artist:lArtist.trim(),img:lImg,cat:lCat}];setLyrics(l);sv("dj3_lyrics",l);setLText("");setLSong("");setLArtist("");setLImg("");setLCat("Uncategorized");}
-  function delLyric(id){const l=lyrics.filter(x=>x.id!==id);setLyrics(l);sv("dj3_lyrics",l);}
-  function addMemory(){if(!mTitle.trim()||!mDesc.trim())return;const m=[...memories,{id:Date.now(),title:mTitle.trim(),desc:mDesc.trim(),date:mDate||today}];setMemories(m);sv("dj3_memories",m);setMTitle("");setMDesc("");setMDate("");}
-  function delMemory(id){const m=memories.filter(x=>x.id!==id);setMemories(m);sv("dj3_memories",m);}
-  function delMeal(id){const m={...meals,[calDay]:calDayMeals.filter(x=>x.id!==id)};setMeals(m);sv("dj3_meals",m);}
+  function addHabit(){if(!newHabitName.trim())return;const h=[...habits,{name:newHabitName.trim(),freq:newHabitFreq}];setHabits(h);saveAndSync(K.habits,"habits",h);setNewHabitName("");setNewHabitFreq(7);}
+  function delHabit(i){const h=habits.filter((_,j)=>j!==i);setHabits(h);saveAndSync(K.habits,"habits",h);}
+  function updateHabitFreq(i,freq){const h=habits.map((x,j)=>j===i?{...x,freq}:x);setHabits(h);saveAndSync(K.habits,"habits",h);}
+  function moveHabit(i,dir){const h=[...habits];const to=i+dir;if(to<0||to>=h.length)return;[h[i],h[to]]=[h[to],h[i]];setHabits(h);saveAndSync(K.habits,"habits",h);}
+  function addTodo(){if(!newTodo.trim())return;const t=[...todos,{id:Date.now(),text:newTodo.trim(),done:false}];setTodos(t);saveAndSync(K.todos,"todos",t);setNewTodo("");}
+  function togTodo(id){const t=todos.map(x=>x.id===id?{...x,done:!x.done}:x);setTodos(t);saveAndSync(K.todos,"todos",t);}
+  function delTodo(id){const t=todos.filter(x=>x.id!==id);setTodos(t);saveAndSync(K.todos,"todos",t);}
+  function clearDone(){const t=todos.filter(x=>!x.done);setTodos(t);saveAndSync(K.todos,"todos",t);}
+  function addQuote(){if(!qText.trim())return;const q=[...quotes,{id:Date.now(),text:qText.trim(),author:qAuthor.trim(),cat:qCat}];setQuotes(q);saveAndSync(K.quotes,"quotes",q);setQText("");setQAuthor("");setQCat("Uncategorized");}
+  function delQuote(id){const q=quotes.filter(x=>x.id!==id);setQuotes(q);saveAndSync(K.quotes,"quotes",q);}
+  function addLyric(){if(!lText.trim()||!lSong.trim())return;const l=[...lyrics,{id:Date.now(),text:lText.trim(),song:lSong.trim(),artist:lArtist.trim(),img:lImg,cat:lCat}];setLyrics(l);saveAndSync(K.lyrics,"lyrics",l);setLText("");setLSong("");setLArtist("");setLImg("");setLCat("Uncategorized");}
+  function delLyric(id){const l=lyrics.filter(x=>x.id!==id);setLyrics(l);saveAndSync(K.lyrics,"lyrics",l);}
+  function addMemory(){if(!mTitle.trim()||!mDesc.trim())return;const m=[...memories,{id:Date.now(),title:mTitle.trim(),desc:mDesc.trim(),date:mDate||today}];setMemories(m);saveAndSync(K.memories,"memories",m);setMTitle("");setMDesc("");setMDate("");}
+  function delMemory(id){const m=memories.filter(x=>x.id!==id);setMemories(m);saveAndSync(K.memories,"memories",m);}
+  function delMeal(id){const m={...meals,[calDay]:calDayMeals.filter(x=>x.id!==id)};setMeals(m);saveAndSync(K.meals,"meals",m);}
 
   async function fetchAlbumArt(){
     if(!lSong.trim())return;setLImgLoading(true);setLImg("");
@@ -177,23 +325,19 @@ export default function App(){
       if(kcalMatch){
         const targetCal=parseFloat(kcalMatch[1]);
         const foodName=mealInput.replace(/(\d+(?:\.\d+)?)\s*(?:kcals?|cals?|calories?)/i,"").trim();
-        const query=foodName||mealInput;
-        const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(query)}`,{headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}});
+        const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(foodName||mealInput)}`,{headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}});
         const d=await res.json();
         let protein=0,carbs=0,fat=0;
         if(d.items&&d.items.length>0){
           const baseCal=d.items.reduce((a,x)=>a+x.calories,0);
-          const baseP=d.items.reduce((a,x)=>a+x.protein_g,0);
-          const baseC=d.items.reduce((a,x)=>a+x.carbohydrates_total_g,0);
-          const baseF=d.items.reduce((a,x)=>a+x.fat_total_g,0);
           const ratio=baseCal>0?targetCal/baseCal:1;
-          protein=Math.round(baseP*ratio);
-          carbs=Math.round(baseC*ratio);
-          fat=Math.round(baseF*ratio);
+          protein=Math.round(d.items.reduce((a,x)=>a+x.protein_g,0)*ratio);
+          carbs=Math.round(d.items.reduce((a,x)=>a+x.carbohydrates_total_g,0)*ratio);
+          fat=Math.round(d.items.reduce((a,x)=>a+x.fat_total_g,0)*ratio);
         }
         const newMeal={id:Date.now(),name:foodName||mealInput,cal:Math.round(targetCal),protein,carbs,fat};
         const updated={...meals,[calDay]:[...calDayMeals,newMeal]};
-        setMeals(updated);sv("dj3_meals",updated);setMealInput("");
+        setMeals(updated);saveAndSync(K.meals,"meals",updated);setMealInput("");
       } else {
         const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(mealInput)}`,{headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}});
         const d=await res.json();
@@ -201,7 +345,7 @@ export default function App(){
         const totals=d.items.reduce((acc,item)=>({cal:acc.cal+item.calories,protein:acc.protein+item.protein_g,carbs:acc.carbs+item.carbohydrates_total_g,fat:acc.fat+item.fat_total_g}),{cal:0,protein:0,carbs:0,fat:0});
         const newMeal={id:Date.now(),name:mealInput.trim(),cal:Math.round(totals.cal),protein:Math.round(totals.protein),carbs:Math.round(totals.carbs),fat:Math.round(totals.fat)};
         const updated={...meals,[calDay]:[...calDayMeals,newMeal]};
-        setMeals(updated);sv("dj3_meals",updated);setMealInput("");
+        setMeals(updated);saveAndSync(K.meals,"meals",updated);setMealInput("");
       }
     }catch(e){console.error(e);}
     setMealLoading(false);
@@ -228,11 +372,13 @@ export default function App(){
     document.body.removeChild(el);
   }
 
+  if(!synced)return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",fontFamily:"system-ui",color:"#888"}}>Syncing...</div>;
+
   return(
     <div style={{fontFamily:"system-ui,sans-serif",padding:"12px 10px",maxWidth:480,margin:"0 auto",minHeight:"100vh",background:"#f5f5f5"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:8}}>
         <span style={{fontSize:18,fontWeight:700,color:"#111"}}>Daily journal</span>
-        <span style={{fontSize:11,color:"#888"}}>{new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</span>
+        <button onClick={onSignOut} style={{fontSize:11,color:"#888",background:"none",border:"none",cursor:"pointer",padding:0}}>Sign out</button>
       </div>
       <div style={{display:"flex",gap:3,marginBottom:10}}>
         {TABS.map(([v,label])=>(
@@ -379,7 +525,7 @@ export default function App(){
                 :<div style={{display:"flex",gap:4,alignItems:"center"}}>
                   <input type="number" value={targetInput} onChange={e=>setTargetInput(Number(e.target.value))}
                     style={{width:70,borderRadius:5,border:`1.5px solid ${P.green}`,padding:"2px 6px",fontSize:12,fontWeight:700,color:P.greenD,background:"#fff"}}/>
-                  <button onClick={()=>{setCalTarget(targetInput);sv("dj3_caltarget",targetInput);setEditTarget(false);}} style={smBtn(P.green,P.greenD,"#fff")}>Save</button>
+                  <button onClick={()=>{setCalTarget(targetInput);saveAndSync(K.calTarget,"caltarget",targetInput);setEditTarget(false);}} style={smBtn(P.green,P.greenD,"#fff")}>Save</button>
                 </div>
               }
             </div>
