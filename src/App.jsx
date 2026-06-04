@@ -266,7 +266,7 @@ export default function App(){
               return(
                 <div key={h.name+i}>
                   <div onClick={()=>!editH&&upEntry({habits:{...entry.habits,[h.name]:!done}})}
-                    style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:7,marginBottom:editH?0:5,background:done&&!editH?P.teal+"22":"transparent",border:`1.5px solid ${done&&!editH?P.teal:"transparent"}`,cursor:editH?"default":"pointer"}}>
+                    style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:7,marginBottom:editH?0:5,background:editH?(i%2===0?P.tealL:"#c8edd8"):done?P.teal+"22":"transparent",border:editH?`1.5px solid ${P.teal}`:`1.5px solid ${done?P.teal:"transparent"}`,cursor:editH?"default":"pointer"}}>
                     {editH
                       ?<span onClick={()=>delHabit(i)} style={{cursor:"pointer",color:P.coral,fontWeight:700,fontSize:18,lineHeight:1,minWidth:18}}>×</span>
                       :<div style={{width:20,height:20,borderRadius:5,border:`2px solid ${done?P.teal:P.tealD}`,background:done?P.teal:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
