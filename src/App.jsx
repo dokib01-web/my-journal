@@ -18,17 +18,19 @@ const MONTHS = ["January","February","March","April","May","June","July","August
 const TABS = [["today","Today"],["todos","To-do"],["cal","Calories"],["weekly","Weekly"],["progress","Progress"],["other","Other"]];
 const TAB_ORDER = TABS.map(([v])=>v);
 const CATEGORIES = ["Uncategorized","Love","Motivation","Life","Longing","Fun"];
+const CAT_COLORS = {
+  Love:{c:"#D4537E",cD:"#4B1528",cL:"#FBEAF0"},
+  Motivation:{c:"#D85A30",cD:"#4A1B0C",cL:"#FAECE7"},
+  Life:{c:"#1D9E75",cD:"#085041",cL:"#E1F5EE"},
+  Longing:{c:"#7F77DD",cD:"#26215C",cL:"#EEEDFE"},
+  Fun:{c:"#BA7517",cD:"#412402",cL:"#FAEEDA"},
+  Uncategorized:{c:"#378ADD",cD:"#042C53",cL:"#E6F1FB"},
+};
 
 const DEFAULT_BLOCK_COLORS = {
-  mood:     {h:213, s:72, b:86},
-  habits:   {h:158, s:81, b:62},
-  notes:    {h:244, s:45, b:87},
-  todos:    {h:213, s:72, b:86},
-  cal:      {h:93,  s:66, b:60},
-  weekly:   {h:213, s:72, b:86},
-  progress: {h:158, s:81, b:62},
-  other:    {h:244, s:45, b:87},
-  nav:      {h:244, s:45, b:87},
+  mood:{h:213,s:72,b:86}, habits:{h:158,s:81,b:62}, notes:{h:244,s:45,b:87},
+  todos:{h:213,s:72,b:86}, cal:{h:93,s:66,b:60}, weekly:{h:213,s:72,b:86},
+  progress:{h:158,s:81,b:62}, other:{h:244,s:45,b:87}, nav:{h:244,s:45,b:87},
 };
 const BLOCK_NAMES = {
   mood:"Mood", habits:"Habits", notes:"Notes", todos:"To-do",
@@ -36,70 +38,41 @@ const BLOCK_NAMES = {
 };
 const BLOCK_STYLES = ["default","filled-white","filled-black"];
 const BLOCK_STYLE_LABELS = ["Default","White text","Black text"];
-
 const DEFAULT_THEME = {
-  appBg: {h:0, s:0, b:96},
-  globalStyle: "default",
-  globalColor: null,
-  blocks: {},
-  swatches: ["#378ADD","#1D9E75","#7F77DD","#D85A30","#BA7517"],
+  appBg:{h:0,s:0,b:96}, globalStyle:"default", globalColor:null,
+  blocks:{}, swatches:["#378ADD","#1D9E75","#7F77DD","#D85A30","#BA7517"], _gcPreview:null,
 };
+const ACTIVITY_LABELS = {sedentary:"Sedentary",light:"Light",moderate:"Moderate",active:"Active",veryactive:"Very active"};
+const ACTIVITY_MULT = {sedentary:1.2,light:1.375,moderate:1.55,active:1.725,veryactive:1.9};
 
 function hsbToHex(h,s,b){
-  if(s===0){const v=Math.round(b/100*255);const hex=v.toString(16).padStart(2,"0");return `#${hex}${hex}${hex}`;}
-  s/=100; b/=100;
+  if(s===0){const v=Math.round(b/100*255);const hx=v.toString(16).padStart(2,"0");return `#${hx}${hx}${hx}`;}
+  s/=100;b/=100;
   const k=n=>(n+h/60)%6;
   const f=n=>b-b*s*Math.max(0,Math.min(k(n),4-k(n),1));
-  const r=Math.round(f(5)*255);
-  const g=Math.round(f(3)*255);
-  const bl=Math.round(f(1)*255);
-  return "#"+[r,g,bl].map(x=>x.toString(16).padStart(2,"0")).join("");
+  return "#"+[f(5),f(3),f(1)].map(x=>Math.round(x*255).toString(16).padStart(2,"0")).join("");
 }
 function hexToHsb(hex){
-  const r=parseInt(hex.slice(1,3),16)/255;
-  const g=parseInt(hex.slice(3,5),16)/255;
-  const b=parseInt(hex.slice(5,7),16)/255;
+  const r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255;
   const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;
   let h=0;
-  if(d){
-    if(max===r)h=((g-b)/d)%6;
-    else if(max===g)h=(b-r)/d+2;
-    else h=(r-g)/d+4;
-    h=Math.round(h*60);if(h<0)h+=360;
-  }
-  const s=max?Math.round(d/max*100):0;
-  const bv=Math.round(max*100);
-  return{h,s,b:bv};
+  if(d){if(max===r)h=((g-b)/d)%6;else if(max===g)h=(b-r)/d+2;else h=(r-g)/d+4;h=Math.round(h*60);if(h<0)h+=360;}
+  return{h,s:max?Math.round(d/max*100):0,b:Math.round(max*100)};
 }
-function lighten(hex){
-  const {h,s,b}=hexToHsb(hex);
-  if(s<5)return "#f5f5f5";
-  return hsbToHex(h,Math.max(s-55,5),Math.min(97,95));
-}
-function darken(hex){
-  const {h,s,b}=hexToHsb(hex);
-  if(s<5)return "#333333";
-  return hsbToHex(h,Math.min(s+20,100),Math.max(20,25));
-}
+function lighten(hex){const{h,s}=hexToHsb(hex);if(s<5)return "#f5f5f5";return hsbToHex(h,Math.max(s-55,5),95);}
+function darken(hex){const{h,s}=hexToHsb(hex);if(s<5)return "#333333";return hsbToHex(h,Math.min(s+20,100),25);}
 function blockStyles(hex,style){
-  if(style==="filled-white") return {bg:hex, border:hex, text:"#ffffff"};
-  if(style==="filled-black") return {bg:hex, border:hex, text:"#000000"};
-  return {bg:lighten(hex), border:hex, text:darken(hex)};
+  if(style==="filled-white")return{bg:hex,border:hex,text:"#ffffff"};
+  if(style==="filled-black")return{bg:hex,border:hex,text:"#000000"};
+  return{bg:lighten(hex),border:hex,text:darken(hex)};
 }
 function getBlockColor(theme,key){
-  if(theme.globalColor) return theme.globalColor;
-  if(theme.blocks[key]?.color) return theme.blocks[key].color;
+  if(theme.blocks[key]?.color)return theme.blocks[key].color;
   const d=DEFAULT_BLOCK_COLORS[key]||DEFAULT_BLOCK_COLORS.mood;
   return hsbToHex(d.h,d.s,d.b);
 }
-function getBlockStyle(theme,key){
-  if(theme.blocks[key]?.style) return theme.blocks[key].style;
-  return theme.globalStyle||"default";
-}
-function getAppBg(theme){
-  const {h,s,b}=theme.appBg||DEFAULT_THEME.appBg;
-  return hsbToHex(h,s,b);
-}
+function getBlockStyle(theme,key){return theme.blocks[key]?.style||theme.globalStyle||"default";}
+function getAppBg(theme){const{h,s,b}=theme.appBg||DEFAULT_THEME.appBg;return hsbToHex(h,s,b);}
 
 function fmt(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
 function todayKey(){return fmt(new Date());}
@@ -122,43 +95,34 @@ function getWeekDays(data,offset){
 function getLast7(data){return Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);const k=fmt(d);return{key:k,date:d,entry:data[k]||{}};});}
 function freqLabel(f){return f===7?"Daily":`${f}x/week`;}
 function habitColor(count,freq){if(count>=freq)return "#1D9E75";if(count>=Math.ceil(freq/2))return "#BA7517";return "#D85A30";}
-
-function smBtn(bc,bg,tc){return{padding:"5px 10px",borderRadius:6,border:`2px solid ${bc}`,background:bg,color:tc,cursor:"pointer",fontSize:12,fontWeight:700};}
-function inpBase(bc,bg){return{borderRadius:6,padding:"6px 9px",fontSize:13,color:"#111",background:bg||"#fff",fontFamily:"system-ui,sans-serif",flex:1,minWidth:0,border:`2px solid ${bc}`};}
-function selStyle(bc,bg,tc){return{borderRadius:5,border:`1.5px solid ${bc}`,background:bg,color:tc,padding:"3px 6px",fontSize:12,fontWeight:700,cursor:"pointer"};}
+const smBtn=(bc,bg,tc)=>({padding:"5px 10px",borderRadius:6,border:`2px solid ${bc}`,background:bg,color:tc,cursor:"pointer",fontSize:12,fontWeight:700});
+const inpBase=(bc,bg)=>({borderRadius:6,padding:"6px 9px",fontSize:13,color:"#111",background:bg||"#fff",fontFamily:"system-ui,sans-serif",flex:1,minWidth:0,border:`2px solid ${bc}`});
+const selStyle=(bc,bg,tc)=>({borderRadius:5,border:`1.5px solid ${bc}`,background:bg,color:tc,padding:"3px 6px",fontSize:12,fontWeight:700,cursor:"pointer"});
 function mkCard(hex,style){const{bg,border,text}=blockStyles(hex,style);return{border:`2px solid ${border}`,borderRadius:8,padding:"10px 12px",marginBottom:8,background:bg,color:text};}
 
-// HSB Color Picker component
-function HsbPicker({hex, onChange}){
-  const {h,s,b} = hexToHsb(hex);
-  const preview = hsbToHex(h,s,b);
-  const [hexInput,setHexInput] = useState(preview.toUpperCase());
-  const [hexError,setHexError] = useState(false);
-
+function HsbPicker({hex,onChange}){
+  const {h,s,b}=hexToHsb(hex);
+  const preview=hsbToHex(h,s,b);
+  const [hexInput,setHexInput]=useState(preview.toUpperCase());
+  const [hexError,setHexError]=useState(false);
   useEffect(()=>{setHexInput(preview.toUpperCase());},[preview]);
-
-  function handleHexInput(val){
+  function handleHex(val){
     setHexInput(val);
     const clean=val.trim().replace(/^#/,"");
-    if(/^[0-9a-fA-F]{6}$/.test(clean)){
-      setHexError(false);
-      onChange("#"+clean);
-    } else {
-      setHexError(true);
-    }
+    if(/^[0-9a-fA-F]{6}$/.test(clean)){setHexError(false);onChange("#"+clean);}
+    else setHexError(true);
   }
-
   return(
     <div>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
         <div style={{width:40,height:40,borderRadius:8,background:preview,border:"2px solid rgba(0,0,0,0.15)",flexShrink:0}}/>
-        <input value={hexInput} onChange={e=>handleHexInput(e.target.value)}
+        <input value={hexInput} onChange={e=>handleHex(e.target.value)}
           style={{fontFamily:"monospace",fontSize:13,padding:"6px 10px",borderRadius:6,border:`1.5px solid ${hexError?"#E24B4A":"#ccc"}`,width:110,color:"#111",background:"#fff",textTransform:"uppercase"}}/>
         {hexError&&<span style={{fontSize:11,color:"#E24B4A"}}>Invalid hex</span>}
       </div>
-      {[["Hue",h,0,360,v=>hsbToHex(v,s,b),`hsl(${h},100%,50%)`],
-        ["Saturation",s,0,100,v=>hsbToHex(h,v,b),`linear-gradient(to right,hsl(${h},0%,${b}%),hsl(${h},100%,${b/2+20}%))`],
-        ["Brightness",b,0,100,v=>hsbToHex(h,s,v),`linear-gradient(to right,#000,hsl(${h},${s}%,50%))`]
+      {[["Hue",h,0,360,v=>hsbToHex(v,s,b),`linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)`],
+        ["Saturation",s,0,100,v=>hsbToHex(h,v,b),`linear-gradient(to right,${hsbToHex(h,0,b)},${hsbToHex(h,100,b)})`],
+        ["Brightness",b,0,100,v=>hsbToHex(h,s,v),`linear-gradient(to right,#000,${hsbToHex(h,s,100)})`]
       ].map(([label,val,min,max,compute,grad])=>(
         <div key={label} style={{marginBottom:10}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
@@ -177,46 +141,152 @@ function HsbPicker({hex, onChange}){
   );
 }
 
-// Settings screen
+function CalorieGoalScreen({calTarget,onSave,onBack}){
+  const [mode,setMode]=useState("simple");
+  const [simpleVal,setSimpleVal]=useState(calTarget);
+  const [age,setAge]=useState("");
+  const [gender,setGender]=useState("male");
+  const [height,setHeight]=useState("");
+  const [weight,setWeight]=useState("");
+  const [goalWeight,setGoalWeight]=useState("");
+  const [activity,setActivity]=useState("moderate");
+  const [result,setResult]=useState(null);
+
+  function calculate(){
+    const a=Number(age),h=Number(height),w=Number(weight),gw=Number(goalWeight);
+    if(!a||!h||!w||!gw)return;
+    const bmr=gender==="male"?(10*w)+(6.25*h)-(5*a)+5:(10*w)+(6.25*h)-(5*a)-161;
+    const tdee=Math.round(bmr*ACTIVITY_MULT[activity]);
+    const diff=gw-w;
+    let target,note="";
+    if(Math.abs(diff)<1){target=tdee;note="At maintenance — no surplus or deficit needed.";}
+    else if(diff<0){
+      const deficit=Math.min(1000,Math.round(Math.abs(diff)*200));
+      target=tdee-deficit;
+      note=deficit===1000?"Capped at safe maximum deficit (−1000 kcal/day ≈ 1kg/week)."`Deficit of ${deficit} kcal/day to reach your goal.`;
+    } else {
+      const surplus=Math.min(500,Math.round(diff*200));
+      target=tdee+surplus;
+      note=surplus===500?"Capped at safe maximum surplus (+500 kcal/day ≈ 0.5kg/week)."`Surplus of ${surplus} kcal/day to reach your goal.`;
+    }
+    setResult({tdee,target:Math.round(target/10)*10,note});
+  }
+
+  const inp={borderRadius:6,padding:"8px 10px",fontSize:14,color:"#111",background:"#fff",border:"1.5px solid #7F77DD",fontFamily:"system-ui,sans-serif",width:"100%",boxSizing:"border-box"};
+
+  return(
+    <div style={{fontFamily:"system-ui,sans-serif",padding:"12px 10px",maxWidth:480,margin:"0 auto",minHeight:"100vh",background:"#f5f5f5"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+        <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#333",padding:"2px 4px",lineHeight:1}}>←</button>
+        <span style={{fontSize:17,fontWeight:700,color:"#111"}}>Calorie goal</span>
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {[["simple","Set manually"],["calc","Calculate for me"]].map(([v,label])=>(
+          <button key={v} onClick={()=>setMode(v)} style={{flex:1,padding:"8px 4px",borderRadius:7,border:`2px solid ${mode===v?"#7F77DD":"#ddd"}`,background:mode===v?"#EEEDFE":"#fff",color:mode===v?"#26215C":"#555",cursor:"pointer",fontSize:12,fontWeight:mode===v?700:400}}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {mode==="simple"&&(
+        <div style={{background:"#EEEDFE",border:"2px solid #7F77DD",borderRadius:10,padding:"16px"}}>
+          <p style={{fontSize:13,color:"#26215C",marginBottom:10}}>Enter your daily calorie target:</p>
+          <input type="number" value={simpleVal} onChange={e=>setSimpleVal(Number(e.target.value))}
+            style={{...inp,fontSize:20,fontWeight:700,textAlign:"center",marginBottom:12}}/>
+          <button onClick={()=>onSave(Math.round(simpleVal/10)*10)} style={{...smBtn("#7F77DD","#26215C","#fff"),width:"100%",padding:"10px",fontSize:14}}>Save target</button>
+        </div>
+      )}
+      {mode==="calc"&&(
+        <div>
+          <div style={{background:"#EEEDFE",border:"2px solid #7F77DD",borderRadius:10,padding:"14px",marginBottom:10}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+              <div>
+                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Age</p>
+                <input type="number" placeholder="e.g. 25" value={age} onChange={e=>setAge(e.target.value)} style={inp}/>
+              </div>
+              <div>
+                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Gender</p>
+                <div style={{display:"flex",gap:6}}>
+                  {["male","female"].map(g=>(
+                    <button key={g} onClick={()=>setGender(g)} style={{flex:1,padding:"8px 4px",borderRadius:6,border:`1.5px solid ${gender===g?"#7F77DD":"#ccc"}`,background:gender===g?"#7F77DD":"#fff",color:gender===g?"#fff":"#555",cursor:"pointer",fontSize:12,fontWeight:gender===g?700:400,textTransform:"capitalize"}}>{g}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Height (cm)</p>
+                <input type="number" placeholder="e.g. 178" value={height} onChange={e=>setHeight(e.target.value)} style={inp}/>
+              </div>
+              <div>
+                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Current weight (kg)</p>
+                <input type="number" placeholder="e.g. 75" value={weight} onChange={e=>setWeight(e.target.value)} style={inp}/>
+              </div>
+              <div>
+                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Goal weight (kg)</p>
+                <input type="number" placeholder="e.g. 68" value={goalWeight} onChange={e=>setGoalWeight(e.target.value)} style={inp}/>
+              </div>
+              <div>
+                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Activity level</p>
+                <select value={activity} onChange={e=>setActivity(e.target.value)} style={{...inp,cursor:"pointer"}}>
+                  {Object.entries(ACTIVITY_LABELS).map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+            </div>
+            <button onClick={calculate} disabled={!age||!height||!weight||!goalWeight}
+              style={{...smBtn("#7F77DD","#26215C","#fff"),width:"100%",padding:"10px",fontSize:14,opacity:!age||!height||!weight||!goalWeight?0.5:1}}>
+              Calculate
+            </button>
+          </div>
+          {result&&(
+            <div style={{background:"#E1F5EE",border:"2px solid #1D9E75",borderRadius:10,padding:"14px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+                <span style={{fontSize:13,color:"#085041"}}>Your TDEE</span>
+                <span style={{fontSize:16,fontWeight:700,color:"#085041"}}>{result.tdee} kcal</span>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:10}}>
+                <span style={{fontSize:13,color:"#085041"}}>Suggested target</span>
+                <span style={{fontSize:24,fontWeight:700,color:"#085041"}}>{result.target} kcal</span>
+              </div>
+              {result.note&&<p style={{fontSize:12,color:"#085041",opacity:0.8,marginBottom:12}}>{result.note}</p>}
+              <button onClick={()=>onSave(result.target)} style={{...smBtn("#1D9E75","#085041","#fff"),width:"100%",padding:"10px",fontSize:14}}>
+                Apply {result.target} kcal as target
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SettingsScreen({theme,setTheme,onBack,onSignOut,saveTheme}){
   const [expandedBlock,setExpandedBlock]=useState(null);
   const [deleteMode,setDeleteMode]=useState(false);
-
   const appBgHex=getAppBg(theme);
-  const {h:abH,s:abS,b:abB}=theme.appBg||DEFAULT_THEME.appBg;
+  const globalColorHex=theme._gcPreview||getBlockColor(theme,Object.keys(BLOCK_NAMES)[0]);
 
-  function updateBlockColor(key,hex){
-    const t={...theme,blocks:{...theme.blocks,[key]:{...theme.blocks[key],color:hex}}};
-    setTheme(t);saveTheme(t);
-  }
-  function updateBlockStyle(key,style){
-    const t={...theme,blocks:{...theme.blocks,[key]:{...theme.blocks[key],style}}};
-    setTheme(t);saveTheme(t);
-  }
-  function setGlobalStyle(style){
-    const t={...theme,globalStyle:style};setTheme(t);saveTheme(t);
-  }
+  function updateBlockColor(key,hex){const t={...theme,blocks:{...theme.blocks,[key]:{...theme.blocks[key],color:hex}}};setTheme(t);saveTheme(t);}
+  function updateBlockStyle(key,style){const t={...theme,blocks:{...theme.blocks,[key]:{...theme.blocks[key],style}}};setTheme(t);saveTheme(t);}
+  function setGlobalStyle(style){const t={...theme,globalStyle:style};setTheme(t);saveTheme(t);}
   function setGlobalColor(hex){
-    if(!hex)return;
     const newBlocks={};
     Object.keys(BLOCK_NAMES).forEach(k=>{newBlocks[k]={...theme.blocks[k],color:hex};});
-    const t={...theme,globalColor:null,blocks:newBlocks};
-    setTheme(t);saveTheme(t);
+    const t={...theme,globalColor:null,blocks:newBlocks};setTheme(t);saveTheme(t);
   }
-  function setAppBg(hex){
-    const hsb=hexToHsb(hex);
-    const t={...theme,appBg:hsb};setTheme(t);saveTheme(t);
-  }
-  function addSwatch(hex){
-    if(theme.swatches.includes(hex)||theme.swatches.length>=10)return;
-    const t={...theme,swatches:[...theme.swatches,hex]};setTheme(t);saveTheme(t);
-  }
-  function removeSwatch(i){
-    const sw=[...theme.swatches];sw.splice(i,1);
-    const t={...theme,swatches:sw};setTheme(t);saveTheme(t);
-  }
+  function setAppBg(hex){const hsb=hexToHsb(hex);const t={...theme,appBg:hsb};setTheme(t);saveTheme(t);}
+  function addSwatch(hex){if(theme.swatches.includes(hex)||theme.swatches.length>=10)return;const t={...theme,swatches:[...theme.swatches,hex]};setTheme(t);saveTheme(t);}
+  function removeSwatch(i){const sw=[...theme.swatches];sw.splice(i,1);const t={...theme,swatches:sw};setTheme(t);saveTheme(t);}
 
-  const globalColorHex=theme._gcPreview||getBlockColor(theme,Object.keys(BLOCK_NAMES)[0]);
+  function SwatchRow({currentHex,onApply}){
+    return(
+      <div style={{display:"flex",gap:6,alignItems:"center",marginTop:4,marginBottom:8,flexWrap:"wrap"}}>
+        <span style={{fontSize:11,color:"#888"}}>Save to swatches:</span>
+        <button onClick={()=>addSwatch(currentHex)} disabled={theme.swatches.includes(currentHex)||theme.swatches.length>=10}
+          style={{...smBtn("#7F77DD","#EEEDFE","#534AB7"),fontSize:11,opacity:theme.swatches.includes(currentHex)||theme.swatches.length>=10?0.4:1}}>+ Add</button>
+        {theme.swatches.map((sw,i)=>(
+          <div key={i} onClick={()=>onApply(sw)} style={{width:22,height:22,borderRadius:5,background:sw,border:"1.5px solid rgba(0,0,0,0.15)",cursor:"pointer",flexShrink:0}}/>
+        ))}
+      </div>
+    );
+  }
 
   return(
     <div style={{fontFamily:"system-ui,sans-serif",padding:"12px 10px",maxWidth:480,margin:"0 auto",minHeight:"100vh",background:appBgHex}}>
@@ -227,7 +297,6 @@ function SettingsScreen({theme,setTheme,onBack,onSignOut,saveTheme}){
 
       <div style={{fontSize:10,fontWeight:700,color:"#888",letterSpacing:".06em",textTransform:"uppercase",marginBottom:8}}>Global</div>
       <div style={{background:"#fff",borderRadius:10,padding:"4px 12px",marginBottom:12}}>
-
         <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid #f0f0f0"}}>
           <span style={{fontSize:13,color:"#333",flex:1}}>App background</span>
           <div style={{width:28,height:28,borderRadius:6,background:appBgHex,border:"1.5px solid #ccc",cursor:"pointer"}} onClick={()=>setExpandedBlock(expandedBlock==="__bg"?null:"__bg")}/>
@@ -235,17 +304,9 @@ function SettingsScreen({theme,setTheme,onBack,onSignOut,saveTheme}){
         {expandedBlock==="__bg"&&(
           <div style={{padding:"12px 0 4px"}}>
             <HsbPicker hex={appBgHex} onChange={setAppBg}/>
-            <div style={{display:"flex",gap:6,alignItems:"center",marginTop:4,marginBottom:8}}>
-              <span style={{fontSize:11,color:"#888"}}>Save to swatches:</span>
-              <button onClick={()=>addSwatch(appBgHex)} disabled={theme.swatches.includes(appBgHex)||theme.swatches.length>=10}
-                style={{...smBtn("#7F77DD","#EEEDFE","#534AB7"),fontSize:11,opacity:theme.swatches.includes(appBgHex)||theme.swatches.length>=10?0.4:1}}>+ Add</button>
-              {theme.swatches.map((sw,i)=>(
-                <div key={i} onClick={()=>setAppBg(sw)} style={{width:22,height:22,borderRadius:5,background:sw,border:"1.5px solid rgba(0,0,0,0.15)",cursor:"pointer",flexShrink:0}}/>
-              ))}
-            </div>
+            <SwatchRow currentHex={appBgHex} onApply={setAppBg}/>
           </div>
         )}
-
         <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid #f0f0f0"}}>
           <span style={{fontSize:13,color:"#333",flex:1}}>Set all block colors</span>
           <div style={{width:28,height:28,borderRadius:6,background:globalColorHex,border:"1.5px solid #ccc",cursor:"pointer"}} onClick={()=>setExpandedBlock(expandedBlock==="__gc"?null:"__gc")}/>
@@ -253,20 +314,12 @@ function SettingsScreen({theme,setTheme,onBack,onSignOut,saveTheme}){
         {expandedBlock==="__gc"&&(
           <div style={{padding:"12px 0 4px"}}>
             <HsbPicker hex={globalColorHex} onChange={h=>setTheme(t=>({...t,_gcPreview:h}))}/>
-            <div style={{display:"flex",gap:6,alignItems:"center",marginTop:4,marginBottom:8}}>
-              <span style={{fontSize:11,color:"#888"}}>Save to swatches:</span>
-              <button onClick={()=>addSwatch(globalColorHex)} disabled={theme.swatches.includes(globalColorHex)||theme.swatches.length>=10}
-                style={{...smBtn("#7F77DD","#EEEDFE","#534AB7"),fontSize:11,opacity:theme.swatches.includes(globalColorHex)||theme.swatches.length>=10?0.4:1}}>+ Add</button>
-              {theme.swatches.map((sw,i)=>(
-                <div key={i} onClick={()=>setTheme(t=>({...t,_gcPreview:sw}))} style={{width:22,height:22,borderRadius:5,background:sw,border:"1.5px solid rgba(0,0,0,0.15)",cursor:"pointer",flexShrink:0}}/>
-              ))}
-            </div>
+            <SwatchRow currentHex={globalColorHex} onApply={h=>setTheme(t=>({...t,_gcPreview:h}))}/>
             <button onClick={()=>setGlobalColor(globalColorHex)} style={{...smBtn("#7F77DD","#26215C","#fff"),width:"100%",padding:"8px",fontSize:13}}>
               Apply to all blocks
             </button>
           </div>
         )}
-
         <div style={{padding:"10px 0"}}>
           <span style={{fontSize:12,color:"#888",display:"block",marginBottom:6}}>All block style</span>
           <div style={{display:"flex",gap:6}}>
@@ -285,11 +338,11 @@ function SettingsScreen({theme,setTheme,onBack,onSignOut,saveTheme}){
         <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
           {theme.swatches.map((sw,i)=>(
             <div key={i} onClick={()=>deleteMode&&removeSwatch(i)}
-              style={{width:28,height:28,borderRadius:6,background:sw,border:deleteMode?`2px solid #E24B4A`:"1.5px solid rgba(0,0,0,0.15)",cursor:deleteMode?"pointer":"default",position:"relative",flexShrink:0}}>
-              {deleteMode&&<div style={{position:"absolute",top:-5,right:-5,width:14,height:14,borderRadius:"50%",background:"#E24B4A",color:"#fff",fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>×</div>}
+              style={{width:28,height:28,borderRadius:6,background:sw,border:deleteMode?"2px solid #E24B4A":"1.5px solid rgba(0,0,0,0.15)",cursor:deleteMode?"pointer":"default",position:"relative",flexShrink:0}}>
+              {deleteMode&&<div style={{position:"absolute",top:-5,right:-5,width:14,height:14,borderRadius:"50%",background:"#E24B4A",color:"#fff",fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>×</div>}
             </div>
           ))}
-          {theme.swatches.length<10&&<div style={{width:28,height:28,borderRadius:6,background:"#f5f5f5",border:"1.5px dashed #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,color:"#aaa",cursor:"default"}}>+</div>}
+          {theme.swatches.length<10&&<div style={{width:28,height:28,borderRadius:6,background:"#f5f5f5",border:"1.5px dashed #ccc",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,color:"#aaa"}}>+</div>}
           <div style={{marginLeft:"auto"}}>
             <button onClick={()=>setDeleteMode(d=>!d)} style={{...smBtn(deleteMode?"#E24B4A":"#ccc",deleteMode?"#FAECE7":"#f5f5f5",deleteMode?"#993C1D":"#888"),fontSize:11}}>
               {deleteMode?"Done":"🗑"}
@@ -311,21 +364,12 @@ function SettingsScreen({theme,setTheme,onBack,onSignOut,saveTheme}){
                 <div style={{width:10,height:10,borderRadius:2,background:hex,flexShrink:0}}/>
                 <span style={{fontSize:13,color:"#333",flex:1}}>{BLOCK_NAMES[key]}</span>
                 <div style={{width:22,height:22,borderRadius:5,background:hex,border:"1.5px solid rgba(0,0,0,0.15)"}}/>
-                <span style={{fontSize:14,color:"#aaa",transform:expandedBlock===key?"rotate(90deg)":"none",transition:"transform .15s"}}>›</span>
+                <span style={{fontSize:14,color:"#aaa",display:"inline-block",transform:expandedBlock===key?"rotate(90deg)":"none",transition:"transform .15s"}}>›</span>
               </div>
               {expandedBlock===key&&(
                 <div style={{padding:"12px 0",borderBottom:isLast?"none":"1px solid #f0f0f0"}}>
                   <HsbPicker hex={hex} onChange={h=>updateBlockColor(key,h)}/>
-                  <div style={{display:"flex",gap:6,alignItems:"center",marginTop:12,marginBottom:12}}>
-                    <span style={{fontSize:11,color:"#888"}}>Save to swatches:</span>
-                    <button onClick={()=>addSwatch(hex)} disabled={theme.swatches.includes(hex)||theme.swatches.length>=10}
-                      style={{...smBtn("#7F77DD","#EEEDFE","#534AB7"),fontSize:11,opacity:theme.swatches.includes(hex)||theme.swatches.length>=10?0.4:1}}>
-                      + Add
-                    </button>
-                    {theme.swatches.map((sw,i)=>(
-                      <div key={i} onClick={()=>updateBlockColor(key,sw)} style={{width:22,height:22,borderRadius:5,background:sw,border:"1.5px solid rgba(0,0,0,0.15)",cursor:"pointer",flexShrink:0}}/>
-                    ))}
-                  </div>
+                  <SwatchRow currentHex={hex} onApply={h=>updateBlockColor(key,h)}/>
                   <span style={{fontSize:12,color:"#888",display:"block",marginBottom:6}}>Block style</span>
                   <div style={{display:"flex",gap:6}}>
                     {BLOCK_STYLES.map((s,i)=>(
@@ -349,135 +393,7 @@ function SettingsScreen({theme,setTheme,onBack,onSignOut,saveTheme}){
   );
 }
 
-function CalorieGoalScreen({calTarget,onSave,onBack}){
-  const [mode,setMode]=useState("simple");
-  const [simpleVal,setSimpleVal]=useState(calTarget);
-  const [age,setAge]=useState("");
-  const [gender,setGender]=useState("male");
-  const [height,setHeight]=useState("");
-  const [weight,setWeight]=useState("");
-  const [goalWeight,setGoalWeight]=useState("");
-  const [activity,setActivity]=useState("moderate");
-  const [result,setResult]=useState(null);
-
-  const ACTIVITY={sedentary:1.2,light:1.375,moderate:1.55,active:1.725,veryactive:1.9};
-  const ACTIVITY_LABELS={sedentary:"Sedentary",light:"Light",moderate:"Moderate",active:"Active",veryactive:"Very active"};
-
-  function calculate(){
-    const a=Number(age),h=Number(height),w=Number(weight),gw=Number(goalWeight);
-    if(!a||!h||!w||!gw)return;
-    const bmr=gender==="male"
-      ?(10*w)+(6.25*h)-(5*a)+5
-      :(10*w)+(6.25*h)-(5*a)-161;
-    const tdee=Math.round(bmr*ACTIVITY[activity]);
-    const diff=gw-w;
-    let target,note="";
-    if(Math.abs(diff)<1){
-      target=tdee;note="At maintenance — no surplus or deficit needed.";
-    } else if(diff<0){
-      const deficit=Math.min(1000,Math.round(Math.abs(diff)*200));
-      target=tdee-deficit;
-      if(deficit===1000)note="Capped at safe maximum deficit (−1000 kcal/day ≈ 1kg/week).";
-      else note=`Deficit of ${deficit} kcal/day to reach your goal.`;
-    } else {
-      const surplus=Math.min(500,Math.round(diff*200));
-      target=tdee+surplus;
-      if(surplus===500)note="Capped at safe maximum surplus (+500 kcal/day ≈ 0.5kg/week).";
-      else note=`Surplus of ${surplus} kcal/day to reach your goal.`;
-    }
-    target=Math.round(target/10)*10;
-    setResult({tdee,target,note});
-  }
-
-  const inputStyle={borderRadius:6,padding:"8px 10px",fontSize:14,color:"#111",background:"#fff",border:"1.5px solid #7F77DD",fontFamily:"system-ui,sans-serif",width:"100%",boxSizing:"border-box"};
-
-  return(
-    <div style={{fontFamily:"system-ui,sans-serif",padding:"12px 10px",maxWidth:480,margin:"0 auto",minHeight:"100vh",background:"#f5f5f5"}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-        <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#333",padding:"2px 4px",lineHeight:1}}>←</button>
-        <span style={{fontSize:17,fontWeight:700,color:"#111"}}>Calorie goal</span>
-      </div>
-
-      <div style={{display:"flex",gap:6,marginBottom:14}}>
-        {[["simple","Set manually"],["calc","Calculate for me"]].map(([v,label])=>(
-          <button key={v} onClick={()=>setMode(v)} style={{flex:1,padding:"8px 4px",borderRadius:7,border:`2px solid ${mode===v?"#7F77DD":"#ddd"}`,background:mode===v?"#EEEDFE":"#fff",color:mode===v?"#26215C":"#555",cursor:"pointer",fontSize:12,fontWeight:mode===v?700:400}}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {mode==="simple"&&(
-        <div style={{background:"#EEEDFE",border:"2px solid #7F77DD",borderRadius:10,padding:"16px"}}>
-          <p style={{fontSize:13,color:"#26215C",marginBottom:10}}>Enter your daily calorie target:</p>
-          <input type="number" value={simpleVal} onChange={e=>setSimpleVal(Number(e.target.value))} style={{...inputStyle,fontSize:20,fontWeight:700,textAlign:"center",marginBottom:12}}/>
-          <button onClick={()=>onSave(Math.round(simpleVal/10)*10)} style={{...smBtn("#7F77DD","#26215C","#fff"),width:"100%",padding:"10px",fontSize:14}}>Save target</button>
-        </div>
-      )}
-
-      {mode==="calc"&&(
-        <div>
-          <div style={{background:"#EEEDFE",border:"2px solid #7F77DD",borderRadius:10,padding:"14px",marginBottom:10}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-              <div>
-                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Age</p>
-                <input type="number" placeholder="e.g. 25" value={age} onChange={e=>setAge(e.target.value)} style={inputStyle}/>
-              </div>
-              <div>
-                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Gender</p>
-                <div style={{display:"flex",gap:6}}>
-                  {["male","female"].map(g=>(
-                    <button key={g} onClick={()=>setGender(g)} style={{flex:1,padding:"8px 4px",borderRadius:6,border:`1.5px solid ${gender===g?"#7F77DD":"#ccc"}`,background:gender===g?"#7F77DD":"#fff",color:gender===g?"#fff":"#555",cursor:"pointer",fontSize:12,fontWeight:gender===g?700:400,textTransform:"capitalize"}}>
-                      {g}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Height (cm)</p>
-                <input type="number" placeholder="e.g. 178" value={height} onChange={e=>setHeight(e.target.value)} style={inputStyle}/>
-              </div>
-              <div>
-                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Current weight (kg)</p>
-                <input type="number" placeholder="e.g. 75" value={weight} onChange={e=>setWeight(e.target.value)} style={inputStyle}/>
-              </div>
-              <div>
-                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Goal weight (kg)</p>
-                <input type="number" placeholder="e.g. 68" value={goalWeight} onChange={e=>setGoalWeight(e.target.value)} style={inputStyle}/>
-              </div>
-              <div>
-                <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Activity level</p>
-                <select value={activity} onChange={e=>setActivity(e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
-                  {Object.entries(ACTIVITY_LABELS).map(([v,l])=><option key={v} value={v}>{l}</option>)}
-                </select>
-              </div>
-            </div>
-            <button onClick={calculate} disabled={!age||!height||!weight||!goalWeight}
-              style={{...smBtn("#7F77DD","#26215C","#fff"),width:"100%",padding:"10px",fontSize:14,opacity:!age||!height||!weight||!goalWeight?0.5:1}}>
-              Calculate
-            </button>
-          </div>
-
-          {result&&(
-            <div style={{background:"#E1F5EE",border:"2px solid #1D9E75",borderRadius:10,padding:"14px"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
-                <span style={{fontSize:13,color:"#085041"}}>Your TDEE</span>
-                <span style={{fontSize:16,fontWeight:700,color:"#085041"}}>{result.tdee} kcal</span>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:10}}>
-                <span style={{fontSize:13,color:"#085041"}}>Suggested target</span>
-                <span style={{fontSize:24,fontWeight:700,color:"#085041"}}>{result.target} kcal</span>
-              </div>
-              {result.note&&<p style={{fontSize:12,color:"#085041",opacity:0.8,marginBottom:12}}>{result.note}</p>}
-              <button onClick={()=>onSave(result.target)} style={{...smBtn("#1D9E75","#085041","#fff"),width:"100%",padding:"10px",fontSize:14}}>
-                Apply {result.target} kcal as target
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+function AuthScreen({onAuth}){
   const [mode,setMode]=useState("login");
   const [email,setEmail]=useState("");
   const [password,setPassword]=useState("");
@@ -486,9 +402,7 @@ function CalorieGoalScreen({calTarget,onSave,onBack}){
   async function handle(){
     setLoading(true);setError("");
     try{
-      let res;
-      if(mode==="login"){res=await supabase.auth.signInWithPassword({email,password});}
-      else{res=await supabase.auth.signUp({email,password});}
+      const res=mode==="login"?await supabase.auth.signInWithPassword({email,password}):await supabase.auth.signUp({email,password});
       if(res.error)throw res.error;
       if(mode==="signup"&&res.data.user&&!res.data.session){setError("Check your email to confirm your account.");setLoading(false);return;}
       onAuth(res.data.user||res.data.session?.user);
@@ -537,7 +451,6 @@ function Journal({user,onSignOut}){
     quotes:ldk(uid,"quotes"),lyrics:ldk(uid,"lyrics"),memories:ldk(uid,"memories"),
     meals:ldk(uid,"meals"),calTarget:ldk(uid,"caltarget"),theme:ldk(uid,"theme"),
   };
-
   const [data,setData]           = useState(()=>ld(K.data,{}));
   const [habits,setHabits]       = useState(()=>ld(K.habits,DEFAULT_HABITS));
   const [todos,setTodos]         = useState(()=>ld(K.todos,[]));
@@ -549,7 +462,7 @@ function Journal({user,onSignOut}){
   const [theme,setTheme]         = useState(()=>ld(K.theme,DEFAULT_THEME));
   const [synced,setSynced]       = useState(false);
   const [showSettings,setShowSettings] = useState(false);
-
+  const [showCalGoal,setShowCalGoal]   = useState(false);
   const [view,setView]           = useState("today");
   const [activeDay,setActiveDay] = useState(todayKey());
   const [calDay,setCalDay]       = useState(todayKey());
@@ -579,12 +492,8 @@ function Journal({user,onSignOut}){
   const [mDate,setMDate]         = useState("");
   const [mealInput,setMealInput] = useState("");
   const [mealLoading,setMealLoading] = useState(false);
-  const [editTarget,setEditTarget] = useState(false);
-  const [targetInput,setTargetInput] = useState(2200);
 
-  async function syncToCloud(key,value){
-    try{await supabase.from("journal_data").upsert({user_id:uid,key,value:JSON.stringify(value)},{onConflict:"user_id,key"});}catch(e){console.error(e);}
-  }
+  async function syncToCloud(key,value){try{await supabase.from("journal_data").upsert({user_id:uid,key,value:JSON.stringify(value)},{onConflict:"user_id,key"});}catch(e){console.error(e);}}
   function saveAndSync(localKey,cloudKey,value){sv(localKey,value);syncToCloud(cloudKey,value);}
   function saveTheme(t){sv(K.theme,t);syncToCloud("theme",t);}
 
@@ -593,9 +502,8 @@ function Journal({user,onSignOut}){
       try{
         const{data:rows}=await supabase.from("journal_data").select("key,value").eq("user_id",uid);
         if(!rows||rows.length===0){
-          const oldKeys=["dj3_data","dj3_habits","dj3_todos","dj3_quotes","dj3_lyrics","dj3_memories","dj3_meals","dj3_caltarget"];
-          const map={dj3_data:"data",dj3_habits:"habits",dj3_todos:"todos",dj3_quotes:"quotes",dj3_lyrics:"lyrics",dj3_memories:"memories",dj3_meals:"meals",dj3_caltarget:"caltarget"};
-          for(const ok of oldKeys){const raw=localStorage.getItem(ok);if(raw){const p=JSON.parse(raw);sv(ldk(uid,map[ok]),p);syncToCloud(map[ok],p);}}
+          const oldMap={dj3_data:"data",dj3_habits:"habits",dj3_todos:"todos",dj3_quotes:"quotes",dj3_lyrics:"lyrics",dj3_memories:"memories",dj3_meals:"meals",dj3_caltarget:"caltarget"};
+          for(const[ok,nk]of Object.entries(oldMap)){const raw=localStorage.getItem(ok);if(raw){const p=JSON.parse(raw);sv(ldk(uid,nk),p);syncToCloud(nk,p);}}
           setData(ld(K.data,{}));setHabits(ld(K.habits,DEFAULT_HABITS));setTodos(ld(K.todos,[]));
           setQuotes(ld(K.quotes,[]));setLyrics(ld(K.lyrics,[]));setMemories(ld(K.memories,[]));
           setMeals(ld(K.meals,{}));setCalTarget(ld(K.calTarget,2200));setTheme(ld(K.theme,DEFAULT_THEME));
@@ -609,7 +517,7 @@ function Journal({user,onSignOut}){
           if(m.memories){sv(K.memories,m.memories);setMemories(m.memories);}
           if(m.meals){sv(K.meals,m.meals);setMeals(m.meals);}
           if(m.caltarget!=null){sv(K.calTarget,m.caltarget);setCalTarget(m.caltarget);}
-          if(m.theme){sv(K.theme,m.theme);setTheme(m.theme);}
+          if(m.theme){sv(K.theme,m.theme);setTheme({...DEFAULT_THEME,...m.theme});}
         }
       }catch(e){console.error(e);}
       setSynced(true);
@@ -621,8 +529,7 @@ function Journal({user,onSignOut}){
     let startX=0,startY=0;
     const onStart=e=>{startX=e.touches[0].clientX;startY=e.touches[0].clientY;};
     const onEnd=e=>{
-      const dx=e.changedTouches[0].clientX-startX;
-      const dy=e.changedTouches[0].clientY-startY;
+      const dx=e.changedTouches[0].clientX-startX,dy=e.changedTouches[0].clientY-startY;
       if(Math.abs(dx)<25||Math.abs(dx)<Math.abs(dy)*1.5)return;
       setView(prev=>{const i=TAB_ORDER.indexOf(prev);if(dx<0&&i<TAB_ORDER.length-1)return TAB_ORDER[i+1];if(dx>0&&i>0)return TAB_ORDER[i-1];return prev;});
     };
@@ -658,14 +565,10 @@ function Journal({user,onSignOut}){
   const totalLogged=Object.keys(data).filter(k=>hasData(data[k])).length;
   const appBg=getAppBg(theme);
 
-  // Theme helpers
   function C(key){return getBlockColor(theme,key);}
   function S(key){return getBlockStyle(theme,key);}
   function card(key){return mkCard(C(key),S(key));}
-  function navBtnStyle(){
-    const{bg,border,text}=blockStyles(C("nav"),S("nav"));
-    return{padding:"5px 10px",borderRadius:6,border:`2px solid ${border}`,background:bg,color:text,cursor:"pointer",fontSize:12,fontWeight:700};
-  }
+  function navBtnStyle(){const{bg,border,text}=blockStyles(C("nav"),S("nav"));return{padding:"5px 10px",borderRadius:6,border:`2px solid ${border}`,background:bg,color:text,cursor:"pointer",fontSize:12,fontWeight:700};}
 
   function upEntry(patch){const u={...data,[activeDay]:{...entry,...patch}};setData(u);saveAndSync(K.data,"data",u);}
   function shiftDay(n){const d=new Date(activeDay+"T12:00:00");d.setDate(d.getDate()+n);const t=new Date();t.setHours(23,59,59);if(d<=t)setActiveDay(fmt(d));}
@@ -720,8 +623,7 @@ function Journal({user,onSignOut}){
     lines.push(entry.mood!=null?`Mood: ${MOODS[entry.mood]} ${MOOD_LABELS[entry.mood]} (${entry.mood+1}/5)`:"Mood: not logged");
     lines.push(``,`Habits:`);
     habits.forEach(h=>lines.push(`  ${entry.habits&&entry.habits[h.name]?"✓":"✗"} ${h.name} (target: ${freqLabel(h.freq)})`));
-    lines.push(``);
-    lines.push(entry.note&&entry.note.trim()?`Notes:\n${entry.note.trim()}`:"Notes: (none)");
+    lines.push(``);lines.push(entry.note&&entry.note.trim()?`Notes:\n${entry.note.trim()}`:"Notes: (none)");
     return lines.join("\n");
   }
   function doCopy(){
@@ -737,25 +639,8 @@ function Journal({user,onSignOut}){
   }
 
   if(!synced)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",fontFamily:"system-ui",color:"#888"}}>Syncing...</div>;
-
-  if(showCalGoal)return(
-    <CalorieGoalScreen calTarget={calTarget} onBack={()=>setShowCalGoal(false)}
-      onSave={val=>{setCalTarget(val);saveAndSync(K.calTarget,"caltarget",val);setShowCalGoal(false);}}/>
-  );
-
-  if(showSettings)return(
-    <SettingsScreen theme={theme} setTheme={setTheme} saveTheme={saveTheme}
-      onBack={()=>setShowSettings(false)} onSignOut={onSignOut}/>
-  );
-
-  const CAT_COLORS={
-    Love:{c:"#D4537E",cD:"#4B1528",cL:"#FBEAF0"},
-    Motivation:{c:"#D85A30",cD:"#4A1B0C",cL:"#FAECE7"},
-    Life:{c:"#1D9E75",cD:"#085041",cL:"#E1F5EE"},
-    Longing:{c:"#7F77DD",cD:"#26215C",cL:"#EEEDFE"},
-    Fun:{c:"#BA7517",cD:"#412402",cL:"#FAEEDA"},
-    Uncategorized:{c:"#378ADD",cD:"#042C53",cL:"#E6F1FB"},
-  };
+  if(showCalGoal)return<CalorieGoalScreen calTarget={calTarget} onBack={()=>setShowCalGoal(false)} onSave={val=>{setCalTarget(val);saveAndSync(K.calTarget,"caltarget",val);setShowCalGoal(false);}}/>;
+  if(showSettings)return<SettingsScreen theme={theme} setTheme={setTheme} saveTheme={saveTheme} onBack={()=>setShowSettings(false)} onSignOut={onSignOut}/>;
 
   return(
     <div style={{fontFamily:"system-ui,sans-serif",padding:"12px 10px",maxWidth:480,margin:"0 auto",minHeight:"100vh",background:appBg}}>
@@ -766,11 +651,7 @@ function Journal({user,onSignOut}){
       <div style={{display:"flex",gap:3,marginBottom:10}}>
         {TABS.map(([v,label])=>{
           const{bg,border,text}=blockStyles(C("nav"),S("nav"));
-          return(
-            <button key={v} onClick={()=>setView(v)} style={{flex:1,padding:"6px 2px",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:view===v?700:400,border:view===v?`2px solid ${border}`:"2px solid #ddd",background:view===v?bg:"#fff",color:view===v?text:"#333"}}>
-              {label}
-            </button>
-          );
+          return<button key={v} onClick={()=>setView(v)} style={{flex:1,padding:"6px 2px",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:view===v?700:400,border:view===v?`2px solid ${border}`:"2px solid #ddd",background:view===v?bg:"#fff",color:view===v?text:"#333"}}>{label}</button>;
         })}
       </div>
 
@@ -818,14 +699,15 @@ function Journal({user,onSignOut}){
             </div>
             {habits.map((h,i)=>{
               const done=!!(entry.habits&&entry.habits[h.name]);
+              const{text}=blockStyles(C("habits"),S("habits"));
               return(
                 <div key={h.name+i}>
                   <div onClick={()=>!editH&&upEntry({habits:{...entry.habits,[h.name]:!done}})}
                     style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:7,marginBottom:editH?0:5,background:editH?(i%2===0?lighten(C("habits")):"rgba(0,0,0,0.05)"):done?C("habits")+"22":"transparent",border:editH?`1.5px solid ${C("habits")}`:`1.5px solid ${done?C("habits"):"transparent"}`,cursor:editH?"default":"pointer"}}>
                     {editH
                       ?<span onClick={()=>delHabit(i)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:18,lineHeight:1,minWidth:18}}>×</span>
-                      :<div style={{width:20,height:20,borderRadius:5,border:`2px solid ${blockStyles(C("habits"),S("habits")).text}`,background:done?C("habits"):"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                        {done&&<span style={{color:blockStyles(C("habits"),S("habits")).text==="#ffffff"?"#fff":blockStyles(C("habits"),S("habits")).text==="#000000"?"#000":"#fff",fontSize:13,fontWeight:700}}>✓</span>}
+                      :<div style={{width:20,height:20,borderRadius:5,border:`2px solid ${text}`,background:done?C("habits"):"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        {done&&<span style={{color:text,fontSize:13,fontWeight:700}}>✓</span>}
                       </div>
                     }
                     <div style={{flex:1}}>
@@ -878,15 +760,18 @@ function Journal({user,onSignOut}){
             {doneCount>0&&<button onClick={clearDone} style={{padding:"5px 10px",borderRadius:6,border:"2px solid #D85A30",background:"#FAECE7",color:"#993C1D",cursor:"pointer",fontSize:12,fontWeight:700}}>Clear done ({doneCount})</button>}
           </div>
           {todos.length===0&&<p style={{fontSize:13,opacity:0.6,margin:"0 0 8px"}}>Nothing here yet.</p>}
-          {todos.map(t=>(
-            <div key={t.id} onClick={()=>togTodo(t.id)} style={{display:"flex",alignItems:"center",gap:10,marginBottom:6,padding:"8px 10px",borderRadius:7,background:t.done?C("todos")+"22":"transparent",border:`1.5px solid ${t.done?C("todos"):"transparent"}`,cursor:"pointer"}}>
-              <div style={{width:20,height:20,borderRadius:5,border:`2px solid ${blockStyles(C("todos"),S("todos")).text}`,background:t.done?C("todos"):"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                {t.done&&<span style={{color:"#fff",fontSize:13,fontWeight:700}}>✓</span>}
+          {todos.map(t=>{
+            const{text}=blockStyles(C("todos"),S("todos"));
+            return(
+              <div key={t.id} onClick={()=>togTodo(t.id)} style={{display:"flex",alignItems:"center",gap:10,marginBottom:6,padding:"8px 10px",borderRadius:7,background:t.done?C("todos")+"22":"transparent",border:`1.5px solid ${t.done?C("todos"):"transparent"}`,cursor:"pointer"}}>
+                <div style={{width:20,height:20,borderRadius:5,border:`2px solid ${text}`,background:t.done?C("todos"):"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  {t.done&&<span style={{color:text,fontSize:13,fontWeight:700}}>✓</span>}
+                </div>
+                <span style={{flex:1,fontSize:13,fontWeight:500,textDecoration:t.done?"line-through":"none",opacity:t.done?0.6:1}}>{t.text}</span>
+                <span onClick={e=>{e.stopPropagation();delTodo(t.id);}} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
               </div>
-              <span style={{flex:1,fontSize:13,fontWeight:500,textDecoration:t.done?"line-through":"none",opacity:t.done?0.6:1}}>{t.text}</span>
-              <span onClick={e=>{e.stopPropagation();delTodo(t.id);}} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
-            </div>
-          ))}
+            );
+          })}
           <div style={{display:"flex",gap:6,marginTop:8}}>
             <input style={inpBase(C("todos"))} placeholder="Add a task..." value={newTodo} onChange={e=>setNewTodo(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addTodo()}/>
             <button onClick={addTodo} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("todos")}`,background:darken(C("todos")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>Add</button>
@@ -904,13 +789,7 @@ function Journal({user,onSignOut}){
           <div style={card("cal")}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
               <span style={{fontSize:10,fontWeight:700}}>{isCalToday?"TODAY'S CALORIES":"CALORIES — "+new Date(calDay+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}).toUpperCase()}</span>
-              {!editTarget
-                ?<span onClick={()=>setShowCalGoal(true)} style={{fontSize:10,fontWeight:700,cursor:"pointer",opacity:0.7}}>Target: {calTarget} kcal ✏️</span>
-                :<div style={{display:"flex",gap:4,alignItems:"center"}}>
-                  <input type="number" value={targetInput} onChange={e=>setTargetInput(Number(e.target.value))} style={{width:70,borderRadius:5,border:`1.5px solid ${C("cal")}`,padding:"2px 6px",fontSize:12,fontWeight:700,color:darken(C("cal")),background:"#fff"}}/>
-                  <button onClick={()=>{setCalTarget(targetInput);saveAndSync(K.calTarget,"caltarget",targetInput);setEditTarget(false);}} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("cal")}`,background:darken(C("cal")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>Save</button>
-                </div>
-              }
+              <span onClick={()=>setShowCalGoal(true)} style={{fontSize:10,fontWeight:700,cursor:"pointer",opacity:0.7}}>Target: {calTarget} kcal ✏️</span>
             </div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
               <span style={{fontSize:28,fontWeight:700}}>{totalCal}</span>
@@ -1178,10 +1057,8 @@ function Journal({user,onSignOut}){
                 return(
                   <div key={l.id} style={{border:`2px solid ${cc.c}`,borderRadius:8,padding:"10px 12px",marginBottom:8,background:cc.cL,color:cc.cD}}>
                     <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
-                      {l.img
-                        ?<img src={l.img} alt="album" style={{width:52,height:52,borderRadius:6,objectFit:"cover",border:`2px solid ${cc.c}`,flexShrink:0}}/>
-                        :<div style={{width:52,height:52,borderRadius:6,background:cc.c+"33",border:`2px solid ${cc.c}`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>♪</div>
-                      }
+                      {l.img?<img src={l.img} alt="album" style={{width:52,height:52,borderRadius:6,objectFit:"cover",border:`2px solid ${cc.c}`,flexShrink:0}}/>
+                        :<div style={{width:52,height:52,borderRadius:6,background:cc.c+"33",border:`2px solid ${cc.c}`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>♪</div>}
                       <div style={{flex:1,minWidth:0}}>
                         <span style={{fontSize:9,fontWeight:700,opacity:0.6,display:"block",marginBottom:2}}>{l.cat||"Uncategorized"}</span>
                         <p style={{fontSize:11,fontWeight:700,margin:"0 0 3px"}}>{l.song}{l.artist?` — ${l.artist}`:""}</p>
@@ -1208,7 +1085,7 @@ function Journal({user,onSignOut}){
               </div>
               {memories.length===0&&<p style={{fontSize:13,color:"#999",textAlign:"center",margin:"16px 0"}}>No memories saved yet.</p>}
               {[...memories].sort((a,b)=>b.date.localeCompare(a.date)).map(m=>(
-                <div key={m.id} style={{border:`2px solid #BA7517`,borderRadius:8,padding:"10px 12px",marginBottom:8,background:"#FAEEDA",color:"#412402"}}>
+                <div key={m.id} style={{border:"2px solid #BA7517",borderRadius:8,padding:"10px 12px",marginBottom:8,background:"#FAEEDA",color:"#412402"}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
                     <div style={{flex:1}}>
                       <p style={{fontSize:10,fontWeight:700,opacity:0.6,margin:"0 0 3px"}}>{new Date(m.date+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</p>
