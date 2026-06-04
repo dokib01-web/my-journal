@@ -49,10 +49,8 @@ function getWeekDays(data,offset){
   d.setDate(d.getDate()-d.getDay()+1-offset*7);
   d.setHours(0,0,0,0);
   return Array.from({length:7},(_,i)=>{
-    const day=new Date(d);
-    day.setDate(d.getDate()+i);
-    const k=fmt(day);
-    return{key:k,date:day,entry:data[k]||{}};
+    const day=new Date(d);day.setDate(d.getDate()+i);
+    const k=fmt(day);return{key:k,date:day,entry:data[k]||{}};
   });
 }
 function getLast7(data){return Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);const k=fmt(d);return{key:k,date:d,entry:data[k]||{}};});}
@@ -65,45 +63,45 @@ const inpBase=(bc,bg)=>({borderRadius:6,padding:"6px 9px",fontSize:13,color:"#11
 const selStyle=(bc,bg,tc)=>({borderRadius:5,border:`1.5px solid ${bc}`,background:bg,color:tc,padding:"3px 6px",fontSize:12,fontWeight:700,cursor:"pointer"});
 
 export default function App(){
-  const [data,setData]          = useState(()=>ld("dj3_data",{}));
-  const [habits,setHabits]      = useState(()=>ld("dj3_habits",DEFAULT_HABITS));
-  const [todos,setTodos]        = useState(()=>ld("dj3_todos",[]));
-  const [quotes,setQuotes]      = useState(()=>ld("dj3_quotes",[]));
-  const [lyrics,setLyrics]      = useState(()=>ld("dj3_lyrics",[]));
-  const [memories,setMemories]  = useState(()=>ld("dj3_memories",[]));
-  const [meals,setMeals]        = useState(()=>ld("dj3_meals",{}));
-  const [calTarget,setCalTarget]= useState(()=>ld("dj3_caltarget",2200));
-  const [view,setView]          = useState("today");
-  const [activeDay,setActiveDay]= useState(todayKey());
-  const [calDay,setCalDay]      = useState(todayKey());
-  const [weekOffset,setWeekOffset]=useState(0);
-  const [calMonth,setCalMonth]  = useState(new Date().getMonth());
-  const [calYear,setCalYear]    = useState(new Date().getFullYear());
-  const [newHabitName,setNewHabitName]=useState("");
-  const [newHabitFreq,setNewHabitFreq]=useState(7);
-  const [newTodo,setNewTodo]    = useState("");
-  const [editH,setEditH]        = useState(false);
-  const [moodOpen,setMoodOpen]  = useState(false);
-  const [copied,setCopied]      = useState(false);
-  const [otherTab,setOtherTab]  = useState("quotes");
-  const [qText,setQText]        = useState("");
-  const [qAuthor,setQAuthor]    = useState("");
-  const [qCat,setQCat]          = useState("Uncategorized");
-  const [qFilter,setQFilter]    = useState("All");
-  const [lText,setLText]        = useState("");
-  const [lSong,setLSong]        = useState("");
-  const [lArtist,setLArtist]    = useState("");
-  const [lImg,setLImg]          = useState("");
-  const [lCat,setLCat]          = useState("Uncategorized");
-  const [lFilter,setLFilter]    = useState("All");
-  const [lImgLoading,setLImgLoading]=useState(false);
-  const [mTitle,setMTitle]      = useState("");
-  const [mDesc,setMDesc]        = useState("");
-  const [mDate,setMDate]        = useState("");
-  const [mealInput,setMealInput]= useState("");
-  const [mealLoading,setMealLoading]=useState(false);
-  const [editTarget,setEditTarget]=useState(false);
-  const [targetInput,setTargetInput]=useState(2200);
+  const [data,setData]           = useState(()=>ld("dj3_data",{}));
+  const [habits,setHabits]       = useState(()=>ld("dj3_habits",DEFAULT_HABITS));
+  const [todos,setTodos]         = useState(()=>ld("dj3_todos",[]));
+  const [quotes,setQuotes]       = useState(()=>ld("dj3_quotes",[]));
+  const [lyrics,setLyrics]       = useState(()=>ld("dj3_lyrics",[]));
+  const [memories,setMemories]   = useState(()=>ld("dj3_memories",[]));
+  const [meals,setMeals]         = useState(()=>ld("dj3_meals",{}));
+  const [calTarget,setCalTarget] = useState(()=>ld("dj3_caltarget",2200));
+  const [view,setView]           = useState("today");
+  const [activeDay,setActiveDay] = useState(todayKey());
+  const [calDay,setCalDay]       = useState(todayKey());
+  const [weekOffset,setWeekOffset] = useState(0);
+  const [calMonth,setCalMonth]   = useState(new Date().getMonth());
+  const [calYear,setCalYear]     = useState(new Date().getFullYear());
+  const [newHabitName,setNewHabitName] = useState("");
+  const [newHabitFreq,setNewHabitFreq] = useState(7);
+  const [newTodo,setNewTodo]     = useState("");
+  const [editH,setEditH]         = useState(false);
+  const [moodOpen,setMoodOpen]   = useState(false);
+  const [copied,setCopied]       = useState(false);
+  const [otherTab,setOtherTab]   = useState("quotes");
+  const [qText,setQText]         = useState("");
+  const [qAuthor,setQAuthor]     = useState("");
+  const [qCat,setQCat]           = useState("Uncategorized");
+  const [qFilter,setQFilter]     = useState("All");
+  const [lText,setLText]         = useState("");
+  const [lSong,setLSong]         = useState("");
+  const [lArtist,setLArtist]     = useState("");
+  const [lImg,setLImg]           = useState("");
+  const [lCat,setLCat]           = useState("Uncategorized");
+  const [lFilter,setLFilter]     = useState("All");
+  const [lImgLoading,setLImgLoading] = useState(false);
+  const [mTitle,setMTitle]       = useState("");
+  const [mDesc,setMDesc]         = useState("");
+  const [mDate,setMDate]         = useState("");
+  const [mealInput,setMealInput] = useState("");
+  const [mealLoading,setMealLoading] = useState(false);
+  const [editTarget,setEditTarget] = useState(false);
+  const [targetInput,setTargetInput] = useState(2200);
 
   useEffect(()=>{
     let startX=0,startY=0;
@@ -120,31 +118,31 @@ export default function App(){
     return()=>{window.removeEventListener("touchstart",onStart);window.removeEventListener("touchend",onEnd);};
   },[]);
 
-  const today       = todayKey();
-  const entry       = data[activeDay]||{mood:null,habits:{},note:""};
-  const isToday     = activeDay===today;
-  const isCalToday  = calDay===today;
+  const today         = todayKey();
+  const entry         = data[activeDay]||{mood:null,habits:{},note:""};
+  const isToday       = activeDay===today;
+  const isCalToday    = calDay===today;
   const isCurrentWeek = weekOffset===0;
-  const activeDateObj   = new Date(activeDay+"T12:00:00");
+  const activeDateObj = new Date(activeDay+"T12:00:00");
   const activeDateLabel = activeDateObj.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-  const calDayMeals = meals[calDay]||[];
-  const totalCal    = calDayMeals.reduce((a,m)=>a+m.cal,0);
-  const totalP      = calDayMeals.reduce((a,m)=>a+m.protein,0);
-  const totalC      = calDayMeals.reduce((a,m)=>a+m.carbs,0);
-  const totalF      = calDayMeals.reduce((a,m)=>a+m.fat,0);
-  const calPct      = Math.min(100,Math.round(totalCal/calTarget*100));
-  const w7          = getWeekDays(data,weekOffset);
-  const weekLabel   = isCurrentWeek?"This week":`${w7[0].date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})} — ${w7[6].date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})}`;
-  const moodVals    = w7.map(x=>x.entry.mood).filter(x=>x!=null);
-  const avgMood     = moodVals.length?Math.round(moodVals.reduce((a,b)=>a+b,0)/moodVals.length*10)/10:null;
-  const weekLogged  = w7.filter(x=>hasData(x.entry)).length;
-  const monthKeys   = getMonthKeys(calYear,calMonth);
-  const firstDay    = new Date(calYear,calMonth,1).getDay();
-  const doneCount   = todos.filter(x=>x.done).length;
-  const pendingCount= todos.filter(x=>!x.done).length;
-  const streak      = calcStreak(data);
-  const longest     = calcLongest(data);
-  const totalLogged = Object.keys(data).filter(k=>hasData(data[k])).length;
+  const calDayMeals   = meals[calDay]||[];
+  const totalCal      = calDayMeals.reduce((a,m)=>a+m.cal,0);
+  const totalP        = calDayMeals.reduce((a,m)=>a+m.protein,0);
+  const totalC        = calDayMeals.reduce((a,m)=>a+m.carbs,0);
+  const totalF        = calDayMeals.reduce((a,m)=>a+m.fat,0);
+  const calPct        = Math.min(100,Math.round(totalCal/calTarget*100));
+  const w7            = getWeekDays(data,weekOffset);
+  const weekLabel     = isCurrentWeek?"This week":`${w7[0].date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})} — ${w7[6].date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})}`;
+  const moodVals      = w7.map(x=>x.entry.mood).filter(x=>x!=null);
+  const avgMood       = moodVals.length?Math.round(moodVals.reduce((a,b)=>a+b,0)/moodVals.length*10)/10:null;
+  const weekLogged    = w7.filter(x=>hasData(x.entry)).length;
+  const monthKeys     = getMonthKeys(calYear,calMonth);
+  const firstDay      = new Date(calYear,calMonth,1).getDay();
+  const doneCount     = todos.filter(x=>x.done).length;
+  const pendingCount  = todos.filter(x=>!x.done).length;
+  const streak        = calcStreak(data);
+  const longest       = calcLongest(data);
+  const totalLogged   = Object.keys(data).filter(k=>hasData(data[k])).length;
 
   function upEntry(patch){const u={...data,[activeDay]:{...entry,...patch}};setData(u);sv("dj3_data",u);}
   function shiftDay(n){const d=new Date(activeDay+"T12:00:00");d.setDate(d.getDate()+n);const t=new Date();t.setHours(23,59,59);if(d<=t)setActiveDay(fmt(d));}
@@ -152,13 +150,8 @@ export default function App(){
   function addHabit(){if(!newHabitName.trim())return;const h=[...habits,{name:newHabitName.trim(),freq:newHabitFreq}];setHabits(h);sv("dj3_habits",h);setNewHabitName("");setNewHabitFreq(7);}
   function delHabit(i){const h=habits.filter((_,j)=>j!==i);setHabits(h);sv("dj3_habits",h);}
   function updateHabitFreq(i,freq){const h=habits.map((x,j)=>j===i?{...x,freq}:x);setHabits(h);sv("dj3_habits",h);}
-  function moveHabit(i,dir){
-    const h=[...habits];
-    const to=i+dir;
-    if(to<0||to>=h.length)return;
-    [h[i],h[to]]=[h[to],h[i]];
-    setHabits(h);sv("dj3_habits",h);
-  }if(!newTodo.trim())return;const t=[...todos,{id:Date.now(),text:newTodo.trim(),done:false}];setTodos(t);sv("dj3_todos",t);setNewTodo("");}
+  function moveHabit(i,dir){const h=[...habits];const to=i+dir;if(to<0||to>=h.length)return;[h[i],h[to]]=[h[to],h[i]];setHabits(h);sv("dj3_habits",h);}
+  function addTodo(){if(!newTodo.trim())return;const t=[...todos,{id:Date.now(),text:newTodo.trim(),done:false}];setTodos(t);sv("dj3_todos",t);setNewTodo("");}
   function togTodo(id){const t=todos.map(x=>x.id===id?{...x,done:!x.done}:x);setTodos(t);sv("dj3_todos",t);}
   function delTodo(id){const t=todos.filter(x=>x.id!==id);setTodos(t);sv("dj3_todos",t);}
   function clearDone(){const t=todos.filter(x=>!x.done);setTodos(t);sv("dj3_todos",t);}
@@ -180,17 +173,10 @@ export default function App(){
     if(!mealInput.trim())return;
     setMealLoading(true);
     try{
-      const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(mealInput)}`,{
-        headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}
-      });
+      const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(mealInput)}`,{headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}});
       const d=await res.json();
       if(!d.items||d.items.length===0)throw new Error("No results");
-      const totals=d.items.reduce((acc,item)=>({
-        cal:acc.cal+item.calories,
-        protein:acc.protein+item.protein_g,
-        carbs:acc.carbs+item.carbohydrates_total_g,
-        fat:acc.fat+item.fat_total_g
-      }),{cal:0,protein:0,carbs:0,fat:0});
+      const totals=d.items.reduce((acc,item)=>({cal:acc.cal+item.calories,protein:acc.protein+item.protein_g,carbs:acc.carbs+item.carbohydrates_total_g,fat:acc.fat+item.fat_total_g}),{cal:0,protein:0,carbs:0,fat:0});
       const newMeal={id:Date.now(),name:mealInput.trim(),cal:Math.round(totals.cal),protein:Math.round(totals.protein),carbs:Math.round(totals.carbs),fat:Math.round(totals.fat)};
       const updated={...meals,[calDay]:[...calDayMeals,newMeal]};
       setMeals(updated);sv("dj3_meals",updated);setMealInput("");
@@ -291,10 +277,13 @@ export default function App(){
                       <span style={{fontSize:14,fontWeight:done&&!editH?700:500}}>{h.name}</span>
                       <span style={{fontSize:11,marginLeft:8,opacity:0.7}}>{freqLabel(h.freq)}</span>
                     </div>
+                    {done&&!editH&&<span style={{fontSize:11,fontWeight:700,color:P.teal}}>✓</span>}
                     {editH&&(
                       <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                        <button onClick={e=>{e.stopPropagation();moveHabit(i,-1);}} disabled={i===0} style={{...smBtn(P.teal,P.tealL,P.tealD),padding:"1px 6px",opacity:i===0?0.3:1,fontSize:11}}>↑</button>
-                        <button onClick={e=>{e.stopPropagation();moveHabit(i,1);}} disabled={i===habits.length-1} style={{...smBtn(P.teal,P.tealL,P.tealD),padding:"1px 6px",opacity:i===habits.length-1?0.3:1,fontSize:11}}>↓</button>
+                        <button onClick={e=>{e.stopPropagation();moveHabit(i,-1);}} disabled={i===0}
+                          style={{...smBtn(P.teal,P.tealL,P.tealD),padding:"1px 7px",opacity:i===0?0.3:1,fontSize:13,lineHeight:1}}>↑</button>
+                        <button onClick={e=>{e.stopPropagation();moveHabit(i,1);}} disabled={i===habits.length-1}
+                          style={{...smBtn(P.teal,P.tealL,P.tealD),padding:"1px 7px",opacity:i===habits.length-1?0.3:1,fontSize:13,lineHeight:1}}>↓</button>
                       </div>
                     )}
                   </div>
@@ -555,7 +544,6 @@ export default function App(){
               </button>
             ))}
           </div>
-
           {otherTab==="quotes"&&(
             <div>
               <div style={card(P.purpleL,P.purple,P.purpleD)}>
@@ -595,7 +583,6 @@ export default function App(){
               })}
             </div>
           )}
-
           {otherTab==="lyrics"&&(
             <div>
               <div style={card(P.tealL,P.teal,P.tealD)}>
@@ -649,7 +636,6 @@ export default function App(){
               })}
             </div>
           )}
-
           {otherTab==="memories"&&(
             <div>
               <div style={card(P.amberL,P.amber,P.amberD)}>
