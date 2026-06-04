@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 const MOODS = ["😞","😕","😐","🙂","😄"];
 const MOOD_LABELS = ["Rough","Not great","Okay","Good","Great"];
