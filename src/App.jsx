@@ -152,7 +152,13 @@ export default function App(){
   function addHabit(){if(!newHabitName.trim())return;const h=[...habits,{name:newHabitName.trim(),freq:newHabitFreq}];setHabits(h);sv("dj3_habits",h);setNewHabitName("");setNewHabitFreq(7);}
   function delHabit(i){const h=habits.filter((_,j)=>j!==i);setHabits(h);sv("dj3_habits",h);}
   function updateHabitFreq(i,freq){const h=habits.map((x,j)=>j===i?{...x,freq}:x);setHabits(h);sv("dj3_habits",h);}
-  function addTodo(){if(!newTodo.trim())return;const t=[...todos,{id:Date.now(),text:newTodo.trim(),done:false}];setTodos(t);sv("dj3_todos",t);setNewTodo("");}
+  function moveHabit(i,dir){
+    const h=[...habits];
+    const to=i+dir;
+    if(to<0||to>=h.length)return;
+    [h[i],h[to]]=[h[to],h[i]];
+    setHabits(h);sv("dj3_habits",h);
+  }if(!newTodo.trim())return;const t=[...todos,{id:Date.now(),text:newTodo.trim(),done:false}];setTodos(t);sv("dj3_todos",t);setNewTodo("");}
   function togTodo(id){const t=todos.map(x=>x.id===id?{...x,done:!x.done}:x);setTodos(t);sv("dj3_todos",t);}
   function delTodo(id){const t=todos.filter(x=>x.id!==id);setTodos(t);sv("dj3_todos",t);}
   function clearDone(){const t=todos.filter(x=>!x.done);setTodos(t);sv("dj3_todos",t);}
@@ -285,7 +291,12 @@ export default function App(){
                       <span style={{fontSize:14,fontWeight:done&&!editH?700:500}}>{h.name}</span>
                       <span style={{fontSize:11,marginLeft:8,opacity:0.7}}>{freqLabel(h.freq)}</span>
                     </div>
-                    {done&&!editH&&<span style={{fontSize:11,fontWeight:700,color:P.teal}}>✓</span>}
+                    {editH&&(
+                      <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                        <button onClick={e=>{e.stopPropagation();moveHabit(i,-1);}} disabled={i===0} style={{...smBtn(P.teal,P.tealL,P.tealD),padding:"1px 6px",opacity:i===0?0.3:1,fontSize:11}}>↑</button>
+                        <button onClick={e=>{e.stopPropagation();moveHabit(i,1);}} disabled={i===habits.length-1} style={{...smBtn(P.teal,P.tealL,P.tealD),padding:"1px 6px",opacity:i===habits.length-1?0.3:1,fontSize:11}}>↓</button>
+                      </div>
+                    )}
                   </div>
                   {editH&&(
                     <div style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px 8px 38px"}}>
