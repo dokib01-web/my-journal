@@ -197,7 +197,11 @@ function SettingsScreen({theme,setTheme,onBack,onSignOut,saveTheme}){
     const t={...theme,globalStyle:style};setTheme(t);saveTheme(t);
   }
   function setGlobalColor(hex){
-    const t={...theme,globalColor:hex||null};setTheme(t);saveTheme(t);
+    if(!hex)return;
+    const newBlocks={};
+    Object.keys(BLOCK_NAMES).forEach(k=>{newBlocks[k]={...theme.blocks[k],color:hex};});
+    const t={...theme,globalColor:null,blocks:newBlocks};
+    setTheme(t);saveTheme(t);
   }
   function setAppBg(hex){
     const hsb=hexToHsb(hex);
@@ -212,7 +216,7 @@ function SettingsScreen({theme,setTheme,onBack,onSignOut,saveTheme}){
     const t={...theme,swatches:sw};setTheme(t);saveTheme(t);
   }
 
-  const globalColorHex=theme.globalColor||hsbToHex(244,45,87);
+  const globalColorHex=theme._gcPreview||getBlockColor(theme,Object.keys(BLOCK_NAMES)[0]);
 
   return(
     <div style={{fontFamily:"system-ui,sans-serif",padding:"12px 10px",maxWidth:480,margin:"0 auto",minHeight:"100vh",background:appBgHex}}>
@@ -231,17 +235,35 @@ function SettingsScreen({theme,setTheme,onBack,onSignOut,saveTheme}){
         {expandedBlock==="__bg"&&(
           <div style={{padding:"12px 0 4px"}}>
             <HsbPicker hex={appBgHex} onChange={setAppBg}/>
+            <div style={{display:"flex",gap:6,alignItems:"center",marginTop:4,marginBottom:8}}>
+              <span style={{fontSize:11,color:"#888"}}>Save to swatches:</span>
+              <button onClick={()=>addSwatch(appBgHex)} disabled={theme.swatches.includes(appBgHex)||theme.swatches.length>=10}
+                style={{...smBtn("#7F77DD","#EEEDFE","#534AB7"),fontSize:11,opacity:theme.swatches.includes(appBgHex)||theme.swatches.length>=10?0.4:1}}>+ Add</button>
+              {theme.swatches.map((sw,i)=>(
+                <div key={i} onClick={()=>setAppBg(sw)} style={{width:22,height:22,borderRadius:5,background:sw,border:"1.5px solid rgba(0,0,0,0.15)",cursor:"pointer",flexShrink:0}}/>
+              ))}
+            </div>
           </div>
         )}
 
         <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid #f0f0f0"}}>
-          <span style={{fontSize:13,color:"#333",flex:1}}>All block color</span>
+          <span style={{fontSize:13,color:"#333",flex:1}}>Set all block colors</span>
           <div style={{width:28,height:28,borderRadius:6,background:globalColorHex,border:"1.5px solid #ccc",cursor:"pointer"}} onClick={()=>setExpandedBlock(expandedBlock==="__gc"?null:"__gc")}/>
         </div>
         {expandedBlock==="__gc"&&(
           <div style={{padding:"12px 0 4px"}}>
-            <HsbPicker hex={globalColorHex} onChange={setGlobalColor}/>
-            <button onClick={()=>setGlobalColor(null)} style={{...smBtn("#888","#f5f5f5","#555"),fontSize:11,marginTop:8}}>Reset to per-block colors</button>
+            <HsbPicker hex={globalColorHex} onChange={h=>setTheme(t=>({...t,_gcPreview:h}))}/>
+            <div style={{display:"flex",gap:6,alignItems:"center",marginTop:4,marginBottom:8}}>
+              <span style={{fontSize:11,color:"#888"}}>Save to swatches:</span>
+              <button onClick={()=>addSwatch(globalColorHex)} disabled={theme.swatches.includes(globalColorHex)||theme.swatches.length>=10}
+                style={{...smBtn("#7F77DD","#EEEDFE","#534AB7"),fontSize:11,opacity:theme.swatches.includes(globalColorHex)||theme.swatches.length>=10?0.4:1}}>+ Add</button>
+              {theme.swatches.map((sw,i)=>(
+                <div key={i} onClick={()=>setTheme(t=>({...t,_gcPreview:sw}))} style={{width:22,height:22,borderRadius:5,background:sw,border:"1.5px solid rgba(0,0,0,0.15)",cursor:"pointer",flexShrink:0}}/>
+              ))}
+            </div>
+            <button onClick={()=>setGlobalColor(globalColorHex)} style={{...smBtn("#7F77DD","#26215C","#fff"),width:"100%",padding:"8px",fontSize:13}}>
+              Apply to all blocks
+            </button>
           </div>
         )}
 
