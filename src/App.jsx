@@ -645,7 +645,7 @@ function Journal({user,onSignOut}){
         <div>
           {pendingCount>0&&(
             <div style={{...card("habits"),textAlign:"center",marginBottom:8}}>
-              <span style={{fontSize:13,fontWeight:700}}>⚠️ You have {pendingCount} task{pendingCount>1?"s":""} to complete</span>
+              <span style={{fontSize:13,fontWeight:700}}>‼️ You have {pendingCount} task{pendingCount>1?"s":""} to complete ‼️</span>
             </div>
           )}
           <div style={{...card("mood"),display:"flex",alignItems:"center",justifyContent:"space-between"}}>
