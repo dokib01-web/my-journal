@@ -72,11 +72,13 @@ function hexToHsb(hex){
   return{h,s,b:bv};
 }
 function lighten(hex){
-  const {h,s}=hexToHsb(hex);
+  const {h,s,b}=hexToHsb(hex);
+  if(s<5)return "#f5f5f5";
   return hsbToHex(h,Math.max(s-55,5),Math.min(97,95));
 }
 function darken(hex){
-  const {h,s}=hexToHsb(hex);
+  const {h,s,b}=hexToHsb(hex);
+  if(s<5)return "#333333";
   return hsbToHex(h,Math.min(s+20,100),Math.max(20,25));
 }
 function blockStyles(hex,style){
@@ -492,8 +494,10 @@ function Journal({user,onSignOut}){
   function C(key){return getBlockColor(theme,key);}
   function S(key){return getBlockStyle(theme,key);}
   function card(key){return mkCard(C(key),S(key));}
-  function navActive(){const hex=C("nav");return{border:`2px solid ${hex}`,background:lighten(hex),color:darken(hex)};}
-  function navInactive(){return{border:"2px solid #ddd",background:"#fff",color:"#333"};}
+  function navBtnStyle(){
+    const{bg,border,text}=blockStyles(C("nav"),S("nav"));
+    return{padding:"5px 10px",borderRadius:6,border:`2px solid ${border}`,background:bg,color:text,cursor:"pointer",fontSize:12,fontWeight:700};
+  }
 
   function upEntry(patch){const u={...data,[activeDay]:{...entry,...patch}};setData(u);saveAndSync(K.data,"data",u);}
   function shiftDay(n){const d=new Date(activeDay+"T12:00:00");d.setDate(d.getDate()+n);const t=new Date();t.setHours(23,59,59);if(d<=t)setActiveDay(fmt(d));}
@@ -587,11 +591,14 @@ function Journal({user,onSignOut}){
         <button onClick={()=>setShowSettings(true)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#555",padding:"2px 4px",lineHeight:1}}>⚙️</button>
       </div>
       <div style={{display:"flex",gap:3,marginBottom:10}}>
-        {TABS.map(([v,label])=>(
-          <button key={v} onClick={()=>setView(v)} style={{flex:1,padding:"6px 2px",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:view===v?700:400,...(view===v?navActive():navInactive())}}>
-            {label}
-          </button>
-        ))}
+        {TABS.map(([v,label])=>{
+          const{bg,border,text}=blockStyles(C("nav"),S("nav"));
+          return(
+            <button key={v} onClick={()=>setView(v)} style={{flex:1,padding:"6px 2px",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:view===v?700:400,border:view===v?`2px solid ${border}`:"2px solid #ddd",background:view===v?bg:"#fff",color:view===v?text:"#333"}}>
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {view==="today"&&(
@@ -602,9 +609,9 @@ function Journal({user,onSignOut}){
             </div>
           )}
           <div style={{...card("mood"),display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <button onClick={()=>shiftDay(-1)} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("nav")}`,background:lighten(C("nav")),color:darken(C("nav")),cursor:"pointer",fontSize:12,fontWeight:700}}>← Back</button>
+            <button onClick={()=>shiftDay(-1)} style={navBtnStyle()}>← Back</button>
             <span style={{fontSize:12,fontWeight:700}}>{isToday?"Today":activeDateObj.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}</span>
-            <button onClick={()=>shiftDay(1)} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("nav")}`,background:lighten(C("nav")),color:darken(C("nav")),cursor:"pointer",fontSize:12,fontWeight:700,opacity:activeDay>=today?0.3:1,pointerEvents:activeDay>=today?"none":"auto"}}>Forward →</button>
+            <button onClick={()=>shiftDay(1)} style={{...navBtnStyle(),opacity:activeDay>=today?0.3:1,pointerEvents:activeDay>=today?"none":"auto"}}>Forward →</button>
           </div>
           <div style={card("mood")}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -717,9 +724,9 @@ function Journal({user,onSignOut}){
       {view==="cal"&&(
         <div>
           <div style={{...card("cal"),display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <button onClick={()=>shiftCalDay(-1)} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("nav")}`,background:lighten(C("nav")),color:darken(C("nav")),cursor:"pointer",fontSize:12,fontWeight:700}}>← Back</button>
+            <button onClick={()=>shiftCalDay(-1)} style={navBtnStyle()}>← Back</button>
             <span style={{fontSize:12,fontWeight:700}}>{isCalToday?"Today":new Date(calDay+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}</span>
-            <button onClick={()=>shiftCalDay(1)} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("nav")}`,background:lighten(C("nav")),color:darken(C("nav")),cursor:"pointer",fontSize:12,fontWeight:700,opacity:calDay>=today?0.3:1,pointerEvents:calDay>=today?"none":"auto"}}>Forward →</button>
+            <button onClick={()=>shiftCalDay(1)} style={{...navBtnStyle(),opacity:calDay>=today?0.3:1,pointerEvents:calDay>=today?"none":"auto"}}>Forward →</button>
           </div>
           <div style={card("cal")}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
@@ -784,9 +791,9 @@ function Journal({user,onSignOut}){
       {view==="weekly"&&(
         <div>
           <div style={{...card("weekly"),display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <button onClick={()=>setWeekOffset(o=>o+1)} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("nav")}`,background:lighten(C("nav")),color:darken(C("nav")),cursor:"pointer",fontSize:12,fontWeight:700}}>← Back</button>
+            <button onClick={()=>setWeekOffset(o=>o+1)} style={navBtnStyle()}>← Back</button>
             <span style={{fontSize:12,fontWeight:700}}>{weekLabel}</span>
-            <button onClick={()=>setWeekOffset(o=>o-1)} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("nav")}`,background:lighten(C("nav")),color:darken(C("nav")),cursor:"pointer",fontSize:12,fontWeight:700,opacity:isCurrentWeek?0.3:1,pointerEvents:isCurrentWeek?"none":"auto"}}>Forward →</button>
+            <button onClick={()=>setWeekOffset(o=>o-1)} style={{...navBtnStyle(),opacity:isCurrentWeek?0.3:1,pointerEvents:isCurrentWeek?"none":"auto"}}>Forward →</button>
           </div>
           <div style={{display:"flex",gap:6,marginBottom:8}}>
             {[{l:"LOGGED",v:`${weekLogged}/7`,c:"#1D9E75"},{l:"AVG MOOD",v:avgMood!=null?MOODS[Math.round(avgMood)]+" "+avgMood.toFixed(1):"—",c:"#378ADD"},{l:"STREAK",v:`${streak}d`,c:"#D85A30"}].map(({l,v,c})=>(
