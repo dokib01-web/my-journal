@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const MOODS = ["😞","😕","😐","🙂","😄"];
 const MOOD_LABELS = ["Rough","Not great","Okay","Good","Great"];
@@ -31,7 +31,77 @@ const CAT_COLORS = {
   Uncategorized:{c:P.blue,    cD:P.blueD,   cL:P.blueL},
 };
 
-function fmt(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+function DraggableHabitList({habits,entry,editH,onToggle,onDelete,onReorder,updateHabitFreq,delHabit,FREQ_OPTIONS,freqLabel,selStyle,P,smBtn}){
+  const [dragIdx,setDragIdx]=useState(null);
+  const [dragOver,setDragOver]=useState(null);
+  const longPressTimer=useRef(null);
+  const listRef=useRef(null);
+
+  function startLongPress(i){
+    longPressTimer.current=setTimeout(()=>setDragIdx(i),400);
+  }
+  function cancelLongPress(){
+    clearTimeout(longPressTimer.current);
+  }
+  function handleTouchMove(e,i){
+    if(dragIdx===null)return;
+    e.preventDefault();
+    const touch=e.touches[0];
+    const els=listRef.current.querySelectorAll("[data-habit]");
+    for(let j=0;j<els.length;j++){
+      const r=els[j].getBoundingClientRect();
+      if(touch.clientY>=r.top&&touch.clientY<=r.bottom){setDragOver(j);break;}
+    }
+  }
+  function handleDrop(){
+    if(dragIdx!==null&&dragOver!==null&&dragIdx!==dragOver){
+      onReorder(dragIdx,dragOver);
+    }
+    setDragIdx(null);setDragOver(null);
+  }
+
+  return(
+    <div ref={listRef}>
+      {habits.map((h,i)=>{
+        const done=!!(entry.habits&&entry.habits[h.name]);
+        const isDragging=dragIdx===i;
+        const isOver=dragOver===i&&dragIdx!==i;
+        return(
+          <div key={h.name+i}
+            data-habit={i}
+            onTouchStart={()=>editH&&startLongPress(i)}
+            onTouchEnd={()=>{cancelLongPress();if(dragIdx!==null)handleDrop();}}
+            onTouchMove={e=>handleTouchMove(e,i)}
+            style={{transform:isDragging?"scale(1.04)":"scale(1)",boxShadow:isDragging?"0 8px 24px #0002":"none",zIndex:isDragging?10:1,position:"relative",transition:isDragging?"none":"transform .15s",borderTop:isOver?`2px solid ${P.teal}`:"2px solid transparent"}}>
+            <div onClick={()=>!editH&&onToggle(h.name,done)}
+              style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:7,marginBottom:editH?0:5,background:done&&!editH?P.teal+"22":"transparent",border:`1.5px solid ${done&&!editH?P.teal:"transparent"}`,cursor:editH?"grab":"pointer"}}>
+              {editH
+                ?<span onClick={e=>{e.stopPropagation();delHabit(i);}} style={{cursor:"pointer",color:P.coral,fontWeight:700,fontSize:18,lineHeight:1,minWidth:18}}>×</span>
+                :<div style={{width:20,height:20,borderRadius:5,border:`2px solid ${done?P.teal:P.tealD}`,background:done?P.teal:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  {done&&<span style={{color:"#fff",fontSize:13,fontWeight:700}}>✓</span>}
+                </div>
+              }
+              <div style={{flex:1}}>
+                <span style={{fontSize:14,fontWeight:done&&!editH?700:500}}>{h.name}</span>
+                <span style={{fontSize:11,marginLeft:8,opacity:0.7}}>{freqLabel(h.freq)}</span>
+              </div>
+              {editH&&<span style={{fontSize:16,opacity:0.4}}>⠿</span>}
+              {done&&!editH&&<span style={{fontSize:11,fontWeight:700,color:P.teal}}>✓</span>}
+            </div>
+            {editH&&(
+              <div style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px 8px 38px"}}>
+                <span style={{fontSize:11,fontWeight:600}}>Frequency:</span>
+                <select value={h.freq} onChange={e=>updateHabitFreq(i,Number(e.target.value))} style={selStyle(P.teal,P.tealL,P.tealD)}>
+                  {FREQ_OPTIONS.map(f=><option key={f} value={f}>{freqLabel(f)}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
 function todayKey(){return fmt(new Date());}
 function getMonthKeys(y,m){const n=new Date(y,m+1,0).getDate();return Array.from({length:n},(_,i)=>`${y}-${String(m+1).padStart(2,"0")}-${String(i+1).padStart(2,"0")}`);}
 function ld(k,d){try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(d));}catch{return d;}}
@@ -138,7 +208,10 @@ export default function App(){
   function shiftCalDay(n){const d=new Date(calDay+"T12:00:00");d.setDate(d.getDate()+n);const t=new Date();t.setHours(23,59,59);if(d<=t)setCalDay(fmt(d));}
   function addHabit(){if(!newHabitName.trim())return;const h=[...habits,{name:newHabitName.trim(),freq:newHabitFreq}];setHabits(h);sv("dj3_habits",h);setNewHabitName("");setNewHabitFreq(7);}
   function delHabit(i){const h=habits.filter((_,j)=>j!==i);setHabits(h);sv("dj3_habits",h);}
-  function updateHabitFreq(i,freq){const h=habits.map((x,j)=>j===i?{...x,freq}:x);setHabits(h);sv("dj3_habits",h);}
+  function reorderHabits(from,to){
+    const h=[...habits];const[moved]=h.splice(from,1);h.splice(to,0,moved);
+    setHabits(h);sv("dj3_habits",h);
+  }
   function addTodo(){if(!newTodo.trim())return;const t=[...todos,{id:Date.now(),text:newTodo.trim(),done:false}];setTodos(t);sv("dj3_todos",t);setNewTodo("");}
   function togTodo(id){const t=todos.map(x=>x.id===id?{...x,done:!x.done}:x);setTodos(t);sv("dj3_todos",t);}
   function delTodo(id){const t=todos.filter(x=>x.id!==id);setTodos(t);sv("dj3_todos",t);}
@@ -269,35 +342,15 @@ export default function App(){
               <span style={{fontSize:10,fontWeight:700}}>HABITS</span>
               <button onClick={()=>setEditH(o=>!o)} style={smBtn(P.teal,P.tealD,"#fff")}>{editH?"Done":"Edit"}</button>
             </div>
-            {habits.map((h,i)=>{
-              const done=!!(entry.habits&&entry.habits[h.name]);
-              return(
-                <div key={h.name+i}>
-                  <div onClick={()=>!editH&&upEntry({habits:{...entry.habits,[h.name]:!done}})}
-                    style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:7,marginBottom:editH?0:5,background:done&&!editH?P.teal+"22":"transparent",border:`1.5px solid ${done&&!editH?P.teal:"transparent"}`,cursor:editH?"default":"pointer"}}>
-                    {editH
-                      ?<span onClick={()=>delHabit(i)} style={{cursor:"pointer",color:P.coral,fontWeight:700,fontSize:18,lineHeight:1,minWidth:18}}>×</span>
-                      :<div style={{width:20,height:20,borderRadius:5,border:`2px solid ${done?P.teal:P.tealD}`,background:done?P.teal:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                        {done&&<span style={{color:"#fff",fontSize:13,fontWeight:700}}>✓</span>}
-                      </div>
-                    }
-                    <div style={{flex:1}}>
-                      <span style={{fontSize:14,fontWeight:done&&!editH?700:500}}>{h.name}</span>
-                      <span style={{fontSize:11,marginLeft:8,opacity:0.7}}>{freqLabel(h.freq)}</span>
-                    </div>
-                    {done&&!editH&&<span style={{fontSize:11,fontWeight:700,color:P.teal}}>✓</span>}
-                  </div>
-                  {editH&&(
-                    <div style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px 8px 38px"}}>
-                      <span style={{fontSize:11,fontWeight:600}}>Frequency:</span>
-                      <select value={h.freq} onChange={e=>updateHabitFreq(i,Number(e.target.value))} style={selStyle(P.teal,P.tealL,P.tealD)}>
-                        {FREQ_OPTIONS.map(f=><option key={f} value={f}>{freqLabel(f)}</option>)}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            <DraggableHabitList
+              habits={habits} entry={entry} editH={editH}
+              onToggle={(name,done)=>upEntry({habits:{...entry.habits,[name]:!done}})}
+              onReorder={reorderHabits}
+              updateHabitFreq={updateHabitFreq}
+              delHabit={delHabit}
+              FREQ_OPTIONS={FREQ_OPTIONS} freqLabel={freqLabel}
+              selStyle={selStyle} P={P} smBtn={smBtn}
+            />
             {editH&&(
               <div style={{borderTop:`1.5px solid ${P.teal}`,marginTop:4,paddingTop:8}}>
                 <div style={{display:"flex",gap:6,marginBottom:6}}>
