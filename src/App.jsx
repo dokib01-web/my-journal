@@ -279,11 +279,11 @@ export default function App(){
                     </div>
                     {done&&!editH&&<span style={{fontSize:11,fontWeight:700,color:P.teal}}>✓</span>}
                     {editH&&(
-                      <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <div style={{display:"flex",gap:4}}>
                         <button onClick={e=>{e.stopPropagation();moveHabit(i,-1);}} disabled={i===0}
-                          style={{...smBtn(P.teal,P.tealL,P.tealD),padding:"1px 7px",opacity:i===0?0.3:1,fontSize:13,lineHeight:1}}>↑</button>
+                          style={{...smBtn(P.teal,P.tealL,P.tealD),padding:"6px 10px",opacity:i===0?0.3:1,fontSize:14}}>↑</button>
                         <button onClick={e=>{e.stopPropagation();moveHabit(i,1);}} disabled={i===habits.length-1}
-                          style={{...smBtn(P.teal,P.tealL,P.tealD),padding:"1px 7px",opacity:i===habits.length-1?0.3:1,fontSize:13,lineHeight:1}}>↓</button>
+                          style={{...smBtn(P.teal,P.tealL,P.tealD),padding:"6px 10px",opacity:i===habits.length-1?0.3:1,fontSize:14}}>↓</button>
                       </div>
                     )}
                   </div>
