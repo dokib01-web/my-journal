@@ -163,11 +163,11 @@ function CalorieGoalScreen({calTarget,onSave,onBack}){
     else if(diff<0){
       const deficit=Math.min(1000,Math.round(Math.abs(diff)*200));
       target=tdee-deficit;
-      note=deficit===1000?"Capped at safe maximum deficit (−1000 kcal/day ≈ 1kg/week)."`Deficit of ${deficit} kcal/day to reach your goal.`;
+      note=deficit===1000?"Capped at safe maximum deficit (−1000 kcal/day ≈ 1kg/week).":`Deficit of ${deficit} kcal/day to reach your goal.`;
     } else {
       const surplus=Math.min(500,Math.round(diff*200));
       target=tdee+surplus;
-      note=surplus===500?"Capped at safe maximum surplus (+500 kcal/day ≈ 0.5kg/week)."`Surplus of ${surplus} kcal/day to reach your goal.`;
+      note=surplus===500?"Capped at safe maximum surplus (+500 kcal/day ≈ 0.5kg/week).":`Surplus of ${surplus} kcal/day to reach your goal.`;
     }
     setResult({tdee,target:Math.round(target/10)*10,note});
   }
