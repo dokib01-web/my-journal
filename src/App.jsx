@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 const MOODS = ["😞","😕","😐","🙂","😄"];
 const MOOD_LABELS = ["Rough","Not great","Okay","Good","Great"];
@@ -64,77 +64,6 @@ const smBtn=(bc,bg,tc)=>({padding:"5px 10px",borderRadius:6,border:`2px solid ${
 const inpBase=(bc,bg)=>({borderRadius:6,padding:"6px 9px",fontSize:13,color:"#111",background:bg||"#fff",fontFamily:"system-ui,sans-serif",flex:1,minWidth:0,border:`2px solid ${bc}`});
 const selStyle=(bc,bg,tc)=>({borderRadius:5,border:`1.5px solid ${bc}`,background:bg,color:tc,padding:"3px 6px",fontSize:12,fontWeight:700,cursor:"pointer"});
 
-function DraggableHabitList({habits,entry,editH,onToggle,onReorder,updateHabitFreq,delHabit}){
-  const [dragIdx,setDragIdx]=useState(null);
-  const [dragOver,setDragOver]=useState(null);
-  const longPressTimer=useRef(null);
-  const listRef=useRef(null);
-
-  function startLongPress(i){
-    longPressTimer.current=setTimeout(()=>setDragIdx(i),400);
-  }
-  function cancelLongPress(){
-    clearTimeout(longPressTimer.current);
-  }
-  function handleTouchMove(e){
-    if(dragIdx===null)return;
-    e.preventDefault();
-    const touch=e.touches[0];
-    const els=listRef.current.querySelectorAll("[data-habit]");
-    for(let j=0;j<els.length;j++){
-      const r=els[j].getBoundingClientRect();
-      if(touch.clientY>=r.top&&touch.clientY<=r.bottom){setDragOver(j);break;}
-    }
-  }
-  function handleDrop(){
-    if(dragIdx!==null&&dragOver!==null&&dragIdx!==dragOver){
-      onReorder(dragIdx,dragOver);
-    }
-    setDragIdx(null);setDragOver(null);
-  }
-
-  return(
-    <div ref={listRef}>
-      {habits.map((h,i)=>{
-        const done=!!(entry.habits&&entry.habits[h.name]);
-        const isDragging=dragIdx===i;
-        const isOver=dragOver===i&&dragIdx!==i;
-        return(
-          <div key={h.name+i} data-habit={i}
-            onTouchStart={()=>editH&&startLongPress(i)}
-            onTouchEnd={()=>{cancelLongPress();if(dragIdx!==null)handleDrop();}}
-            onTouchMove={e=>handleTouchMove(e)}
-            style={{transform:isDragging?"scale(1.04)":"scale(1)",boxShadow:isDragging?"0 8px 24px #0002":"none",zIndex:isDragging?10:1,position:"relative",transition:isDragging?"none":"transform .15s",borderTop:isOver?`2px solid ${P.teal}`:"2px solid transparent"}}>
-            <div onClick={()=>!editH&&onToggle(h.name,done)}
-              style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:7,marginBottom:editH?0:5,background:done&&!editH?P.teal+"22":"transparent",border:`1.5px solid ${done&&!editH?P.teal:"transparent"}`,cursor:editH?"grab":"pointer"}}>
-              {editH
-                ?<span onClick={e=>{e.stopPropagation();delHabit(i);}} style={{cursor:"pointer",color:P.coral,fontWeight:700,fontSize:18,lineHeight:1,minWidth:18}}>×</span>
-                :<div style={{width:20,height:20,borderRadius:5,border:`2px solid ${done?P.teal:P.tealD}`,background:done?P.teal:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  {done&&<span style={{color:"#fff",fontSize:13,fontWeight:700}}>✓</span>}
-                </div>
-              }
-              <div style={{flex:1}}>
-                <span style={{fontSize:14,fontWeight:done&&!editH?700:500}}>{h.name}</span>
-                <span style={{fontSize:11,marginLeft:8,opacity:0.7}}>{freqLabel(h.freq)}</span>
-              </div>
-              {editH&&<span style={{fontSize:16,opacity:0.4}}>⠿</span>}
-              {done&&!editH&&<span style={{fontSize:11,fontWeight:700,color:P.teal}}>✓</span>}
-            </div>
-            {editH&&(
-              <div style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px 8px 38px"}}>
-                <span style={{fontSize:11,fontWeight:600}}>Frequency:</span>
-                <select value={h.freq} onChange={e=>updateHabitFreq(i,Number(e.target.value))} style={selStyle(P.teal,P.tealL,P.tealD)}>
-                  {FREQ_OPTIONS.map(f=><option key={f} value={f}>{freqLabel(f)}</option>)}
-                </select>
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default function App(){
   const [data,setData]         = useState(()=>ld("dj3_data",{}));
   const [habits,setHabits]     = useState(()=>ld("dj3_habits",DEFAULT_HABITS));
@@ -147,7 +76,6 @@ export default function App(){
   const [view,setView]         = useState("today");
   const [activeDay,setActiveDay]= useState(todayKey());
   const [calDay,setCalDay]     = useState(todayKey());
-  const [weekOffset,setWeekOffset]=useState(0);
   const [calMonth,setCalMonth] = useState(new Date().getMonth());
   const [calYear,setCalYear]   = useState(new Date().getFullYear());
   const [newHabitName,setNewHabitName]=useState("");
@@ -173,6 +101,7 @@ export default function App(){
   const [mDate,setMDate]       = useState("");
   const [mealInput,setMealInput]=useState("");
   const [mealLoading,setMealLoading]=useState(false);
+  const [weekOffset,setWeekOffset]=useState(0);
   const [editTarget,setEditTarget]=useState(false);
   const [targetInput,setTargetInput]=useState(2200);
 
@@ -195,7 +124,6 @@ export default function App(){
   const entry      = data[activeDay]||{mood:null,habits:{},note:""};
   const isToday    = activeDay===today;
   const isCalToday = calDay===today;
-  const isCurrentWeek = weekOffset===0;
   const activeDateObj   = new Date(activeDay+"T12:00:00");
   const activeDateLabel = activeDateObj.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
   const calDayMeals = meals[calDay]||[];
@@ -211,7 +139,6 @@ export default function App(){
   function addHabit(){if(!newHabitName.trim())return;const h=[...habits,{name:newHabitName.trim(),freq:newHabitFreq}];setHabits(h);sv("dj3_habits",h);setNewHabitName("");setNewHabitFreq(7);}
   function delHabit(i){const h=habits.filter((_,j)=>j!==i);setHabits(h);sv("dj3_habits",h);}
   function updateHabitFreq(i,freq){const h=habits.map((x,j)=>j===i?{...x,freq}:x);setHabits(h);sv("dj3_habits",h);}
-  function reorderHabits(from,to){const h=[...habits];const[moved]=h.splice(from,1);h.splice(to,0,moved);setHabits(h);sv("dj3_habits",h);}
   function addTodo(){if(!newTodo.trim())return;const t=[...todos,{id:Date.now(),text:newTodo.trim(),done:false}];setTodos(t);sv("dj3_todos",t);setNewTodo("");}
   function togTodo(id){const t=todos.map(x=>x.id===id?{...x,done:!x.done}:x);setTodos(t);sv("dj3_todos",t);}
   function delTodo(id){const t=todos.filter(x=>x.id!==id);setTodos(t);sv("dj3_todos",t);}
@@ -234,31 +161,20 @@ export default function App(){
     if(!mealInput.trim())return;
     setMealLoading(true);
     try{
-      const kcalMatch=mealInput.match(/(\d+)\s*kcal/i);
-      if(kcalMatch){
-        const cal=parseInt(kcalMatch[1]);
-        const foodName=mealInput.replace(/\d+\s*kcal/i,"").trim();
-        const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(foodName||mealInput)}`,{headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}});
-        const d=await res.json();
-        let protein=0,carbs=0,fat=0;
-        if(d.items&&d.items.length>0){
-          const ratio=cal/(d.items.reduce((a,x)=>a+x.calories,0)||1);
-          protein=Math.round(d.items.reduce((a,x)=>a+x.protein_g,0)*ratio);
-          carbs=Math.round(d.items.reduce((a,x)=>a+x.carbohydrates_total_g,0)*ratio);
-          fat=Math.round(d.items.reduce((a,x)=>a+x.fat_total_g,0)*ratio);
-        }
-        const newMeal={id:Date.now(),name:foodName||mealInput,cal,protein,carbs,fat};
-        const updated={...meals,[calDay]:[...calDayMeals,newMeal]};
-        setMeals(updated);sv("dj3_meals",updated);setMealInput("");
-      } else {
-        const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(mealInput)}`,{headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}});
-        const d=await res.json();
-        if(!d.items||d.items.length===0)throw new Error("No results");
-        const totals=d.items.reduce((acc,item)=>({cal:acc.cal+item.calories,protein:acc.protein+item.protein_g,carbs:acc.carbs+item.carbohydrates_total_g,fat:acc.fat+item.fat_total_g}),{cal:0,protein:0,carbs:0,fat:0});
-        const newMeal={id:Date.now(),name:mealInput.trim(),cal:Math.round(totals.cal),protein:Math.round(totals.protein),carbs:Math.round(totals.carbs),fat:Math.round(totals.fat)};
-        const updated={...meals,[calDay]:[...calDayMeals,newMeal]};
-        setMeals(updated);sv("dj3_meals",updated);setMealInput("");
-      }
+      const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(mealInput)}`,{
+        headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}
+      });
+      const d=await res.json();
+      if(!d.items||d.items.length===0)throw new Error("No results");
+      const totals=d.items.reduce((acc,item)=>({
+        cal:acc.cal+item.calories,
+        protein:acc.protein+item.protein_g,
+        carbs:acc.carbs+item.carbohydrates_total_g,
+        fat:acc.fat+item.fat_total_g
+      }),{cal:0,protein:0,carbs:0,fat:0});
+      const newMeal={id:Date.now(),name:mealInput.trim(),cal:Math.round(totals.cal),protein:Math.round(totals.protein),carbs:Math.round(totals.carbs),fat:Math.round(totals.fat)};
+      const updated={...meals,[calDay]:[...calDayMeals,newMeal]};
+      setMeals(updated);sv("dj3_meals",updated);setMealInput("");
     }catch(e){console.error(e);}
     setMealLoading(false);
   }
@@ -288,6 +204,7 @@ export default function App(){
   const longest     = calcLongest(data);
   const totalLogged = Object.keys(data).filter(k=>hasData(data[k])).length;
   const w7          = getWeekDays(data,weekOffset);
+  const isCurrentWeek = weekOffset===0;
   const weekLabel   = isCurrentWeek?"This week":`${w7[0].date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})} — ${w7[6].date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})}`;
   const moodVals    = w7.map(x=>x.entry.mood).filter(x=>x!=null);
   const avgMood     = moodVals.length?Math.round(moodVals.reduce((a,b)=>a+b,0)/moodVals.length*10)/10:null;
@@ -295,7 +212,6 @@ export default function App(){
   const monthKeys   = getMonthKeys(calYear,calMonth);
   const firstDay    = new Date(calYear,calMonth,1).getDay();
   const doneCount   = todos.filter(x=>x.done).length;
-  const pendingCount= todos.filter(x=>!x.done).length;
 
   return(
     <div style={{fontFamily:"system-ui,sans-serif",padding:"12px 10px",maxWidth:480,margin:"0 auto",minHeight:"100vh",background:"#f5f5f5"}}>
@@ -313,9 +229,9 @@ export default function App(){
 
       {view==="today"&&(
         <div>
-          {pendingCount>0&&(
+          {todos.filter(t=>!t.done).length>0&&(
             <div style={{...card(P.coralL,P.coral,P.coralD),textAlign:"center",marginBottom:8}}>
-              <span style={{fontSize:13,fontWeight:700}}>⚠️ You have {pendingCount} task{pendingCount>1?"s":""} to complete</span>
+              <span style={{fontSize:13,fontWeight:700}}>⚠️ You have {todos.filter(t=>!t.done).length} task{todos.filter(t=>!t.done).length>1?"s":""} to complete</span>
             </div>
           )}
           <div style={{...card(isToday?P.tealL:P.amberL,isToday?P.teal:P.amber,isToday?P.tealD:P.amberD),display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -353,13 +269,35 @@ export default function App(){
               <span style={{fontSize:10,fontWeight:700}}>HABITS</span>
               <button onClick={()=>setEditH(o=>!o)} style={smBtn(P.teal,P.tealD,"#fff")}>{editH?"Done":"Edit"}</button>
             </div>
-            <DraggableHabitList
-              habits={habits} entry={entry} editH={editH}
-              onToggle={(name,done)=>upEntry({habits:{...entry.habits,[name]:!done}})}
-              onReorder={reorderHabits}
-              updateHabitFreq={updateHabitFreq}
-              delHabit={delHabit}
-            />
+            {habits.map((h,i)=>{
+              const done=!!(entry.habits&&entry.habits[h.name]);
+              return(
+                <div key={h.name+i}>
+                  <div onClick={()=>!editH&&upEntry({habits:{...entry.habits,[h.name]:!done}})}
+                    style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:7,marginBottom:editH?0:5,background:done&&!editH?P.teal+"22":"transparent",border:`1.5px solid ${done&&!editH?P.teal:"transparent"}`,cursor:editH?"default":"pointer"}}>
+                    {editH
+                      ?<span onClick={()=>delHabit(i)} style={{cursor:"pointer",color:P.coral,fontWeight:700,fontSize:18,lineHeight:1,minWidth:18}}>×</span>
+                      :<div style={{width:20,height:20,borderRadius:5,border:`2px solid ${done?P.teal:P.tealD}`,background:done?P.teal:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        {done&&<span style={{color:"#fff",fontSize:13,fontWeight:700}}>✓</span>}
+                      </div>
+                    }
+                    <div style={{flex:1}}>
+                      <span style={{fontSize:14,fontWeight:done&&!editH?700:500}}>{h.name}</span>
+                      <span style={{fontSize:11,marginLeft:8,opacity:0.7}}>{freqLabel(h.freq)}</span>
+                    </div>
+                    {done&&!editH&&<span style={{fontSize:11,fontWeight:700,color:P.teal}}>✓</span>}
+                  </div>
+                  {editH&&(
+                    <div style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px 8px 38px"}}>
+                      <span style={{fontSize:11,fontWeight:600}}>Frequency:</span>
+                      <select value={h.freq} onChange={e=>updateHabitFreq(i,Number(e.target.value))} style={selStyle(P.teal,P.tealL,P.tealD)}>
+                        {FREQ_OPTIONS.map(f=><option key={f} value={f}>{freqLabel(f)}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             {editH&&(
               <div style={{borderTop:`1.5px solid ${P.teal}`,marginTop:4,paddingTop:8}}>
                 <div style={{display:"flex",gap:6,marginBottom:6}}>
@@ -444,12 +382,12 @@ export default function App(){
           <div style={card(P.greenL,P.green,P.greenD)}>
             <span style={{fontSize:10,fontWeight:700,display:"block",marginBottom:6}}>LOG A MEAL</span>
             <div style={{display:"flex",gap:6}}>
-              <input style={inpBase(P.green,"#fff")} placeholder='"a bowl of pasta" or "240kcal chocolate"' value={mealInput} onChange={e=>setMealInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&logMeal()}/>
+              <input style={inpBase(P.green,"#fff")} placeholder='"a bowl of spaghetti bolognese"' value={mealInput} onChange={e=>setMealInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&logMeal()}/>
               <button onClick={logMeal} disabled={mealLoading||!mealInput.trim()} style={{...smBtn(P.green,P.greenD,"#fff"),opacity:mealLoading||!mealInput.trim()?0.5:1,minWidth:52}}>
                 {mealLoading?"...":"Log"}
               </button>
             </div>
-            {mealLoading&&<p style={{fontSize:12,opacity:0.6,margin:"6px 0 0"}}>Looking up calories...</p>}
+            {mealLoading&&<p style={{fontSize:12,opacity:0.6,margin:"6px 0 0"}}>Estimating calories...</p>}
           </div>
           {calDayMeals.length>0&&(
             <div style={card(P.greenL,P.green,P.greenD)}>
@@ -577,8 +515,7 @@ export default function App(){
           <div style={card(P.purpleL,P.purple,P.purpleD)}>
             <span style={{fontSize:10,fontWeight:700,display:"block",marginBottom:8}}>HABITS — LAST 7 DAYS</span>
             {habits.map(h=>{
-              const last7=getLast7(data);
-              const bars=last7.map(x=>x.entry.habits&&x.entry.habits[h.name]?1:0);
+              const bars=w7.map(x=>x.entry.habits&&x.entry.habits[h.name]?1:0);
               const count=bars.reduce((a,b)=>a+b,0);
               const col=habitColor(count,h.freq);
               return(
