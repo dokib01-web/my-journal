@@ -44,6 +44,17 @@ function calcLongest(data){
   for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){if(hasData(data[fmt(d)])){cur++;best=Math.max(best,cur);}else cur=0;}
   return best;
 }
+function getWeekDays(data,offset){
+  const d=new Date();
+  d.setDate(d.getDate()-d.getDay()+1-offset*7);
+  d.setHours(0,0,0,0);
+  return Array.from({length:7},(_,i)=>{
+    const day=new Date(d);
+    day.setDate(d.getDate()+i);
+    const k=fmt(day);
+    return{key:k,date:day,entry:data[k]||{}};
+  });
+}
 function getLast7(data){return Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);const k=fmt(d);return{key:k,date:d,entry:data[k]||{}};});}
 function freqLabel(f){return f===7?"Daily":`${f}x/week`;}
 function habitColor(count,freq){if(count>=freq)return P.teal;if(count>=Math.ceil(freq/2))return P.amber;return P.coral;}
@@ -90,6 +101,7 @@ export default function App(){
   const [mDate,setMDate]       = useState("");
   const [mealInput,setMealInput]=useState("");
   const [mealLoading,setMealLoading]=useState(false);
+  const [weekOffset,setWeekOffset]=useState(0);
   const [editTarget,setEditTarget]=useState(false);
   const [targetInput,setTargetInput]=useState(2200);
 
@@ -191,7 +203,9 @@ export default function App(){
   const streak      = calcStreak(data);
   const longest     = calcLongest(data);
   const totalLogged = Object.keys(data).filter(k=>hasData(data[k])).length;
-  const w7          = getLast7(data);
+  const w7          = getWeekDays(data,weekOffset);
+  const isCurrentWeek = weekOffset===0;
+  const weekLabel   = isCurrentWeek?"This week":`${w7[0].date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})} — ${w7[6].date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})}`;
   const moodVals    = w7.map(x=>x.entry.mood).filter(x=>x!=null);
   const avgMood     = moodVals.length?Math.round(moodVals.reduce((a,b)=>a+b,0)/moodVals.length*10)/10:null;
   const weekLogged  = w7.filter(x=>hasData(x.entry)).length;
@@ -392,6 +406,11 @@ export default function App(){
 
       {view==="weekly"&&(
         <div>
+          <div style={{...card(isCurrentWeek?P.tealL:P.amberL,isCurrentWeek?P.teal:P.amber,isCurrentWeek?P.tealD:P.amberD),display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <button onClick={()=>setWeekOffset(o=>o+1)} style={smBtn(P.purple,P.purpleL,P.purpleD)}>← Back</button>
+            <span style={{fontSize:12,fontWeight:700}}>{weekLabel}</span>
+            <button onClick={()=>setWeekOffset(o=>o-1)} style={{...smBtn(P.purple,P.purpleL,P.purpleD),opacity:isCurrentWeek?0.3:1,pointerEvents:isCurrentWeek?"none":"auto"}}>Forward →</button>
+          </div>
           <div style={{display:"flex",gap:6,marginBottom:8}}>
             {[{l:"LOGGED",v:`${weekLogged}/7`,c:P.teal,cD:P.tealD,cL:P.tealL},{l:"AVG MOOD",v:avgMood!=null?MOODS[Math.round(avgMood)]+" "+avgMood.toFixed(1):"—",c:P.blue,cD:P.blueD,cL:P.blueL},{l:"STREAK",v:`${streak}d`,c:P.coral,cD:P.coralD,cL:P.coralL}].map(({l,v,c,cD,cL})=>(
               <div key={l} style={{flex:1,border:`2px solid ${c}`,borderRadius:8,padding:"8px 10px",background:cL}}>
