@@ -796,12 +796,15 @@ function Journal({user,onSignOut}){
             <button onClick={()=>setWeekOffset(o=>o-1)} style={{...navBtnStyle(),opacity:isCurrentWeek?0.3:1,pointerEvents:isCurrentWeek?"none":"auto"}}>Forward →</button>
           </div>
           <div style={{display:"flex",gap:6,marginBottom:8}}>
-            {[{l:"LOGGED",v:`${weekLogged}/7`,c:"#1D9E75"},{l:"AVG MOOD",v:avgMood!=null?MOODS[Math.round(avgMood)]+" "+avgMood.toFixed(1):"—",c:"#378ADD"},{l:"STREAK",v:`${streak}d`,c:"#D85A30"}].map(({l,v,c})=>(
-              <div key={l} style={{flex:1,border:`2px solid ${c}`,borderRadius:8,padding:"8px 10px",background:lighten(c)}}>
-                <p style={{fontSize:10,fontWeight:700,color:darken(c),margin:"0 0 2px"}}>{l}</p>
-                <p style={{fontSize:20,fontWeight:700,margin:0,color:darken(c)}}>{v}</p>
-              </div>
-            ))}
+            {[{l:"LOGGED",v:`${weekLogged}/7`,k:"weekly"},{l:"AVG MOOD",v:avgMood!=null?MOODS[Math.round(avgMood)]+" "+avgMood.toFixed(1):"—",k:"mood"},{l:"STREAK",v:`${streak}d`,k:"habits"}].map(({l,v,k})=>{
+              const{bg,border,text}=blockStyles(C(k),S(k));
+              return(
+                <div key={l} style={{flex:1,border:`2px solid ${border}`,borderRadius:8,padding:"8px 10px",background:bg}}>
+                  <p style={{fontSize:10,fontWeight:700,color:text,margin:"0 0 2px"}}>{l}</p>
+                  <p style={{fontSize:20,fontWeight:700,margin:0,color:text}}>{v}</p>
+                </div>
+              );
+            })}
           </div>
           <div style={card("weekly")}>
             <span style={{fontSize:10,fontWeight:700,display:"block",marginBottom:6}}>THIS WEEK</span>
@@ -863,12 +866,15 @@ function Journal({user,onSignOut}){
       {view==="progress"&&(
         <div>
           <div style={{display:"flex",gap:6,marginBottom:8}}>
-            {[{l:"TODAY",v:entry.mood!=null?MOODS[entry.mood]:"—",c:"#378ADD"},{l:"STREAK",v:`${streak}d`,c:"#D85A30"},{l:"BEST",v:`${longest}d`,c:"#BA7517"},{l:"LOGGED",v:`${totalLogged}d`,c:"#7F77DD"}].map(({l,v,c})=>(
-              <div key={l} style={{flex:1,border:`2px solid ${c}`,borderRadius:8,padding:"8px 6px",background:lighten(c)}}>
-                <p style={{fontSize:9,fontWeight:700,color:darken(c),margin:"0 0 2px"}}>{l}</p>
-                <p style={{fontSize:18,fontWeight:700,margin:0,color:darken(c)}}>{v}</p>
-              </div>
-            ))}
+            {[{l:"TODAY",v:entry.mood!=null?MOODS[entry.mood]:"—",k:"mood"},{l:"STREAK",v:`${streak}d`,k:"habits"},{l:"BEST",v:`${longest}d`,k:"cal"},{l:"LOGGED",v:`${totalLogged}d`,k:"progress"}].map(({l,v,k})=>{
+              const{bg,border,text}=blockStyles(C(k),S(k));
+              return(
+                <div key={l} style={{flex:1,border:`2px solid ${border}`,borderRadius:8,padding:"8px 6px",background:bg}}>
+                  <p style={{fontSize:9,fontWeight:700,color:text,margin:"0 0 2px"}}>{l}</p>
+                  <p style={{fontSize:18,fontWeight:700,margin:0,color:text}}>{v}</p>
+                </div>
+              );
+            })}
           </div>
           <div style={card("progress")}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
