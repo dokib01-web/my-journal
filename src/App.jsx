@@ -132,11 +132,29 @@ function mkCard(hex,style){const{bg,border,text}=blockStyles(hex,style);return{b
 function HsbPicker({hex, onChange}){
   const {h,s,b} = hexToHsb(hex);
   const preview = hsbToHex(h,s,b);
+  const [hexInput,setHexInput] = useState(preview.toUpperCase());
+  const [hexError,setHexError] = useState(false);
+
+  useEffect(()=>{setHexInput(preview.toUpperCase());},[preview]);
+
+  function handleHexInput(val){
+    setHexInput(val);
+    const clean=val.trim().replace(/^#/,"");
+    if(/^[0-9a-fA-F]{6}$/.test(clean)){
+      setHexError(false);
+      onChange("#"+clean);
+    } else {
+      setHexError(true);
+    }
+  }
+
   return(
     <div>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
         <div style={{width:40,height:40,borderRadius:8,background:preview,border:"2px solid rgba(0,0,0,0.15)",flexShrink:0}}/>
-        <span style={{fontSize:12,color:"#666",fontFamily:"monospace"}}>{preview.toUpperCase()}</span>
+        <input value={hexInput} onChange={e=>handleHexInput(e.target.value)}
+          style={{fontFamily:"monospace",fontSize:13,padding:"6px 10px",borderRadius:6,border:`1.5px solid ${hexError?"#E24B4A":"#ccc"}`,width:110,color:"#111",background:"#fff",textTransform:"uppercase"}}/>
+        {hexError&&<span style={{fontSize:11,color:"#E24B4A"}}>Invalid hex</span>}
       </div>
       {[["Hue",h,0,360,v=>hsbToHex(v,s,b),`hsl(${h},100%,50%)`],
         ["Saturation",s,0,100,v=>hsbToHex(h,v,b),`linear-gradient(to right,hsl(${h},0%,${b}%),hsl(${h},100%,${b/2+20}%))`],
@@ -588,7 +606,7 @@ function Journal({user,onSignOut}){
     <div style={{fontFamily:"system-ui,sans-serif",padding:"12px 10px",maxWidth:480,margin:"0 auto",minHeight:"100vh",background:appBg}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:8}}>
         <span style={{fontSize:18,fontWeight:700,color:"#111"}}>Daily journal</span>
-        <button onClick={()=>setShowSettings(true)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#555",padding:"2px 4px",lineHeight:1}}>⚙️</button>
+        <button onClick={()=>setShowSettings(true)} style={{background:"none",border:"2px solid rgba(128,128,128,0.4)",borderRadius:8,cursor:"pointer",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,color:"#555",flexShrink:0}}>⚙</button>
       </div>
       <div style={{display:"flex",gap:3,marginBottom:10}}>
         {TABS.map(([v,label])=>{
