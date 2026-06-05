@@ -473,6 +473,7 @@ function Journal({user,onSignOut}){
   const [newHabitFreq,setNewHabitFreq] = useState(7);
   const [newTodo,setNewTodo]     = useState("");
   const [editH,setEditH]         = useState(false);
+  const [editT,setEditT]         = useState(false);
   const [moodOpen,setMoodOpen]   = useState(false);
   const [copied,setCopied]       = useState(false);
   const [otherTab,setOtherTab]   = useState("quotes");
@@ -584,6 +585,7 @@ function Journal({user,onSignOut}){
   function togTodo(id){const t=todos.map(x=>x.id===id?{...x,done:!x.done}:x);setTodos(t);saveAndSync(K.todos,"todos",t);}
   function delTodo(id){const t=todos.filter(x=>x.id!==id);setTodos(t);saveAndSync(K.todos,"todos",t);}
   function clearDone(){const t=todos.filter(x=>!x.done);setTodos(t);saveAndSync(K.todos,"todos",t);}
+  function moveTodo(i,dir){const t=[...todos];const to=i+dir;if(to<0||to>=t.length)return;[t[i],t[to]]=[t[to],t[i]];setTodos(t);saveAndSync(K.todos,"todos",t);}
   function addQuote(){if(!qText.trim())return;const q=[...quotes,{id:Date.now(),text:qText.trim(),author:qAuthor.trim(),cat:qCat}];setQuotes(q);saveAndSync(K.quotes,"quotes",q);setQText("");setQAuthor("");setQCat("Uncategorized");}
   function delQuote(id){const q=quotes.filter(x=>x.id!==id);setQuotes(q);saveAndSync(K.quotes,"quotes",q);}
   function addLyric(){if(!lText.trim()||!lSong.trim())return;const l=[...lyrics,{id:Date.now(),text:lText.trim(),song:lSong.trim(),artist:lArtist.trim(),img:lImg,cat:lCat}];setLyrics(l);saveAndSync(K.lyrics,"lyrics",l);setLText("");setLSong("");setLArtist("");setLImg("");setLCat("Uncategorized");}
@@ -763,25 +765,41 @@ function Journal({user,onSignOut}){
         <div style={card("todos")}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
             <span style={{fontSize:10,fontWeight:700}}>TO-DO LIST</span>
-            {doneCount>0&&<button onClick={clearDone} style={{padding:"5px 10px",borderRadius:6,border:"2px solid #D85A30",background:"#FAECE7",color:"#993C1D",cursor:"pointer",fontSize:12,fontWeight:700}}>Clear done ({doneCount})</button>}
+            <div style={{display:"flex",gap:6}}>
+              {doneCount>0&&!editT&&<button onClick={clearDone} style={{padding:"5px 10px",borderRadius:6,border:"2px solid #D85A30",background:"#FAECE7",color:"#993C1D",cursor:"pointer",fontSize:12,fontWeight:700}}>Clear done ({doneCount})</button>}
+              {todos.length>1&&<button onClick={()=>setEditT(o=>!o)} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("todos")}`,background:darken(C("todos")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>{editT?"Done":"Edit"}</button>}
+            </div>
           </div>
           {todos.length===0&&<p style={{fontSize:13,opacity:0.6,margin:"0 0 8px"}}>Nothing here yet.</p>}
-          {todos.map(t=>{
+          {todos.map((t,i)=>{
             const{text}=blockStyles(C("todos"),S("todos"));
             return(
-              <div key={t.id} onClick={()=>togTodo(t.id)} style={{display:"flex",alignItems:"center",gap:10,marginBottom:6,padding:"8px 10px",borderRadius:7,background:t.done?C("todos")+"22":"transparent",border:`1.5px solid ${t.done?C("todos"):"transparent"}`,cursor:"pointer"}}>
-                <div style={{width:20,height:20,borderRadius:5,border:`2px solid ${text}`,background:t.done?C("todos"):"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  {t.done&&<span style={{color:text,fontSize:13,fontWeight:700}}>✓</span>}
-                </div>
-                <span style={{flex:1,fontSize:13,fontWeight:500,textDecoration:t.done?"line-through":"none",opacity:t.done?0.6:1}}>{t.text}</span>
-                <span onClick={e=>{e.stopPropagation();delTodo(t.id);}} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
+              <div key={t.id} onClick={()=>!editT&&togTodo(t.id)}
+                style={{display:"flex",alignItems:"center",gap:10,marginBottom:6,padding:"8px 10px",borderRadius:7,background:editT?(i%2===0?lighten(C("todos")):"rgba(0,0,0,0.05)"):t.done?C("todos")+"22":"transparent",border:editT?`1.5px solid ${C("todos")}`:`1.5px solid ${t.done?C("todos"):"transparent"}`,cursor:editT?"default":"pointer"}}>
+                {editT
+                  ?<span onClick={e=>{e.stopPropagation();delTodo(t.id);}} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:18,lineHeight:1,minWidth:18}}>×</span>
+                  :<div style={{width:20,height:20,borderRadius:5,border:`2px solid ${text}`,background:t.done?C("todos"):"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    {t.done&&<span style={{color:text,fontSize:13,fontWeight:700}}>✓</span>}
+                  </div>
+                }
+                <span style={{flex:1,fontSize:13,fontWeight:500,textDecoration:!editT&&t.done?"line-through":"none",opacity:!editT&&t.done?0.6:1}}>{t.text}</span>
+                {editT?(
+                  <div style={{display:"flex",gap:4}}>
+                    <button onClick={e=>{e.stopPropagation();moveTodo(i,-1);}} disabled={i===0} style={{padding:"6px 10px",borderRadius:6,border:`2px solid ${C("todos")}`,background:lighten(C("todos")),color:darken(C("todos")),cursor:"pointer",fontSize:14,opacity:i===0?0.3:1}}>↑</button>
+                    <button onClick={e=>{e.stopPropagation();moveTodo(i,1);}} disabled={i===todos.length-1} style={{padding:"6px 10px",borderRadius:6,border:`2px solid ${C("todos")}`,background:lighten(C("todos")),color:darken(C("todos")),cursor:"pointer",fontSize:14,opacity:i===todos.length-1?0.3:1}}>↓</button>
+                  </div>
+                ):(
+                  <span onClick={e=>{e.stopPropagation();delTodo(t.id);}} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
+                )}
               </div>
             );
           })}
-          <div style={{display:"flex",gap:6,marginTop:8}}>
-            <input style={inpBase(C("todos"))} placeholder="Add a task..." value={newTodo} onChange={e=>setNewTodo(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addTodo()}/>
-            <button onClick={addTodo} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("todos")}`,background:darken(C("todos")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>Add</button>
-          </div>
+          {!editT&&(
+            <div style={{display:"flex",gap:6,marginTop:8}}>
+              <input style={inpBase(C("todos"))} placeholder="Add a task..." value={newTodo} onChange={e=>setNewTodo(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addTodo()}/>
+              <button onClick={addTodo} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("todos")}`,background:darken(C("todos")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>Add</button>
+            </div>
+          )}
         </div>
       )}
 
