@@ -504,6 +504,7 @@ function Journal({user,onSignOut}){
   const [editingQuote,setEditingQuote] = useState(null); // {id, text, author, cat}
   const [editingLyric,setEditingLyric] = useState(null); // {id, text, song, artist, img, cat}
   const [editingMemory,setEditingMemory] = useState(null); // {id, title, desc, date}
+  const [confirmDelete,setConfirmDelete] = useState(null); // {type, id}
 
   async function syncToCloud(key,value){try{await supabase.from("journal_data").upsert({user_id:uid,key,value:JSON.stringify(value)},{onConflict:"user_id,key"});}catch(e){console.error(e);}}
   function saveAndSync(localKey,cloudKey,value){sv(localKey,value);syncToCloud(cloudKey,value);}
@@ -1095,7 +1096,7 @@ function Journal({user,onSignOut}){
                         </div>
                         <div style={{display:"flex",flexDirection:"column",gap:6,flexShrink:0}}>
                           <span onClick={()=>setEditingQuote({id:q.id,text:q.text,author:q.author||"",cat:q.cat||"Uncategorized"})} style={{cursor:"pointer",color:cc.cD,fontWeight:700,fontSize:14,lineHeight:1,opacity:0.6}}>✏️</span>
-                          <span onClick={()=>delQuote(q.id)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
+                          <span onClick={()=>setConfirmDelete({type:"quote",id:q.id})} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
                         </div>
                       </div>
                     )}
@@ -1172,7 +1173,7 @@ function Journal({user,onSignOut}){
                         </div>
                         <div style={{display:"flex",flexDirection:"column",gap:6,flexShrink:0}}>
                           <span onClick={()=>setEditingLyric({id:l.id,text:l.text,song:l.song,artist:l.artist||"",img:l.img||"",cat:l.cat||"Uncategorized"})} style={{cursor:"pointer",color:cc.cD,fontWeight:700,fontSize:14,lineHeight:1,opacity:0.6}}>✏️</span>
-                          <span onClick={()=>delLyric(l.id)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
+                          <span onClick={()=>setConfirmDelete({type:"lyric",id:l.id})} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
                         </div>
                       </div>
                     )}
@@ -1222,7 +1223,7 @@ function Journal({user,onSignOut}){
                         </div>
                         <div style={{display:"flex",flexDirection:"column",gap:6,flexShrink:0}}>
                           <span onClick={()=>setEditingMemory({id:m.id,title:m.title,desc:m.desc,date:m.date})} style={{cursor:"pointer",color:"#412402",fontWeight:700,fontSize:14,lineHeight:1,opacity:0.6}}>✏️</span>
-                          <span onClick={()=>delMemory(m.id)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
+                          <span onClick={()=>setConfirmDelete({type:"memory",id:m.id})} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
                         </div>
                       </div>
                     )}
@@ -1231,6 +1232,23 @@ function Journal({user,onSignOut}){
               })}
             </div>
           )}
+        </div>
+      )}
+      {confirmDelete&&(
+        <div onClick={()=>setConfirmDelete(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:14,padding:"24px 20px",width:"100%",maxWidth:320,boxShadow:"0 8px 32px rgba(0,0,0,0.2)",textAlign:"center"}}>
+            <p style={{fontSize:16,fontWeight:700,color:"#111",margin:"0 0 6px"}}>Delete this {confirmDelete.type}?</p>
+            <p style={{fontSize:13,color:"#888",margin:"0 0 20px"}}>This cannot be undone.</p>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>setConfirmDelete(null)} style={{...smBtn("#ccc","#f5f5f5","#555"),flex:1,padding:"10px",fontSize:14}}>Cancel</button>
+              <button onClick={()=>{
+                if(confirmDelete.type==="quote")delQuote(confirmDelete.id);
+                else if(confirmDelete.type==="lyric")delLyric(confirmDelete.id);
+                else if(confirmDelete.type==="memory")delMemory(confirmDelete.id);
+                setConfirmDelete(null);
+              }} style={{...smBtn("#E24B4A","#E24B4A","#fff"),flex:1,padding:"10px",fontSize:14}}>Delete</button>
+            </div>
+          </div>
         </div>
       )}
       {showFavMeals&&(
