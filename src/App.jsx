@@ -492,6 +492,9 @@ function Journal({user,onSignOut}){
   const [mDate,setMDate]         = useState("");
   const [mealInput,setMealInput] = useState("");
   const [mealLoading,setMealLoading] = useState(false);
+  const [editingQuote,setEditingQuote] = useState(null); // {id, text, author, cat}
+  const [editingLyric,setEditingLyric] = useState(null); // {id, text, song, artist, img, cat}
+  const [editingMemory,setEditingMemory] = useState(null); // {id, title, desc, date}
 
   async function syncToCloud(key,value){try{await supabase.from("journal_data").upsert({user_id:uid,key,value:JSON.stringify(value)},{onConflict:"user_id,key"});}catch(e){console.error(e);}}
   function saveAndSync(localKey,cloudKey,value){sv(localKey,value);syncToCloud(cloudKey,value);}
@@ -588,6 +591,9 @@ function Journal({user,onSignOut}){
   function addMemory(){if(!mTitle.trim()||!mDesc.trim())return;const m=[...memories,{id:Date.now(),title:mTitle.trim(),desc:mDesc.trim(),date:mDate||today}];setMemories(m);saveAndSync(K.memories,"memories",m);setMTitle("");setMDesc("");setMDate("");}
   function delMemory(id){const m=memories.filter(x=>x.id!==id);setMemories(m);saveAndSync(K.memories,"memories",m);}
   function delMeal(id){const m={...meals,[calDay]:calDayMeals.filter(x=>x.id!==id)};setMeals(m);saveAndSync(K.meals,"meals",m);}
+  function saveEditQuote(){if(!editingQuote||!editingQuote.text.trim())return;const q=quotes.map(x=>x.id===editingQuote.id?{...x,...editingQuote}:x);setQuotes(q);saveAndSync(K.quotes,"quotes",q);setEditingQuote(null);}
+  function saveEditLyric(){if(!editingLyric||!editingLyric.text.trim()||!editingLyric.song.trim())return;const l=lyrics.map(x=>x.id===editingLyric.id?{...x,...editingLyric}:x);setLyrics(l);saveAndSync(K.lyrics,"lyrics",l);setEditingLyric(null);}
+  function saveEditMemory(){if(!editingMemory||!editingMemory.title.trim()||!editingMemory.desc.trim())return;const m=memories.map(x=>x.id===editingMemory.id?{...x,...editingMemory}:x);setMemories(m);saveAndSync(K.memories,"memories",m);setEditingMemory(null);}
 
   async function fetchAlbumArt(){
     if(!lSong.trim())return;setLImgLoading(true);setLImg("");
@@ -1005,16 +1011,38 @@ function Journal({user,onSignOut}){
               {quotes.length===0&&<p style={{fontSize:13,color:"#999",textAlign:"center",margin:"16px 0"}}>No quotes saved yet.</p>}
               {[...quotes].reverse().filter(q=>qFilter==="All"||(q.cat||"Uncategorized")===qFilter).map(q=>{
                 const cc=CAT_COLORS[q.cat||"Uncategorized"];
+                const isEditing=editingQuote?.id===q.id;
                 return(
                   <div key={q.id} style={{border:`2px solid ${cc.c}`,borderRadius:8,padding:"10px 12px",marginBottom:8,background:cc.cL,color:cc.cD}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
-                      <div style={{flex:1}}>
-                        <span style={{fontSize:9,fontWeight:700,opacity:0.6,display:"block",marginBottom:3}}>{q.cat||"Uncategorized"}</span>
-                        <p style={{fontSize:13,margin:0,lineHeight:1.6,fontStyle:"italic"}}>"{q.text}"</p>
-                        {q.author&&<p style={{fontSize:11,fontWeight:700,margin:"5px 0 0",opacity:0.7}}>— {q.author}</p>}
+                    {isEditing?(
+                      <div>
+                        <textarea value={editingQuote.text} onChange={e=>setEditingQuote(v=>({...v,text:e.target.value}))}
+                          style={{width:"100%",minHeight:60,resize:"vertical",borderRadius:6,border:`1.5px solid ${cc.c}`,padding:"7px",fontSize:13,color:"#111",background:"#fff",boxSizing:"border-box",fontFamily:"system-ui,sans-serif",marginBottom:6}}/>
+                        <div style={{display:"flex",gap:6,marginBottom:6}}>
+                          <input value={editingQuote.author} onChange={e=>setEditingQuote(v=>({...v,author:e.target.value}))} placeholder="Author (optional)"
+                            style={{...inpBase(cc.c,"#fff")}}/>
+                          <select value={editingQuote.cat} onChange={e=>setEditingQuote(v=>({...v,cat:e.target.value}))} style={selStyle(cc.c,"#fff",darken(cc.c))}>
+                            {CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                        <div style={{display:"flex",gap:6}}>
+                          <button onClick={saveEditQuote} style={{...smBtn(cc.c,cc.cD,"#fff"),flex:1}}>Save</button>
+                          <button onClick={()=>setEditingQuote(null)} style={{...smBtn("#ccc","#f5f5f5","#555"),flex:1}}>Cancel</button>
+                        </div>
                       </div>
-                      <span onClick={()=>delQuote(q.id)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1,flexShrink:0}}>×</span>
-                    </div>
+                    ):(
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                        <div style={{flex:1}}>
+                          <span style={{fontSize:9,fontWeight:700,opacity:0.6,display:"block",marginBottom:3}}>{q.cat||"Uncategorized"}</span>
+                          <p style={{fontSize:13,margin:0,lineHeight:1.6,fontStyle:"italic"}}>"{q.text}"</p>
+                          {q.author&&<p style={{fontSize:11,fontWeight:700,margin:"5px 0 0",opacity:0.7}}>— {q.author}</p>}
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",gap:6,flexShrink:0}}>
+                          <span onClick={()=>setEditingQuote({id:q.id,text:q.text,author:q.author||"",cat:q.cat||"Uncategorized"})} style={{cursor:"pointer",color:cc.cD,fontWeight:700,fontSize:14,lineHeight:1,opacity:0.6}}>✏️</span>
+                          <span onClick={()=>delQuote(q.id)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1054,18 +1082,44 @@ function Journal({user,onSignOut}){
               {lyrics.length===0&&<p style={{fontSize:13,color:"#999",textAlign:"center",margin:"16px 0"}}>No lyrics saved yet.</p>}
               {[...lyrics].reverse().filter(l=>lFilter==="All"||(l.cat||"Uncategorized")===lFilter).map(l=>{
                 const cc=CAT_COLORS[l.cat||"Uncategorized"];
+                const isEditing=editingLyric?.id===l.id;
                 return(
                   <div key={l.id} style={{border:`2px solid ${cc.c}`,borderRadius:8,padding:"10px 12px",marginBottom:8,background:cc.cL,color:cc.cD}}>
-                    <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
-                      {l.img?<img src={l.img} alt="album" style={{width:52,height:52,borderRadius:6,objectFit:"cover",border:`2px solid ${cc.c}`,flexShrink:0}}/>
-                        :<div style={{width:52,height:52,borderRadius:6,background:cc.c+"33",border:`2px solid ${cc.c}`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>♪</div>}
-                      <div style={{flex:1,minWidth:0}}>
-                        <span style={{fontSize:9,fontWeight:700,opacity:0.6,display:"block",marginBottom:2}}>{l.cat||"Uncategorized"}</span>
-                        <p style={{fontSize:11,fontWeight:700,margin:"0 0 3px"}}>{l.song}{l.artist?` — ${l.artist}`:""}</p>
-                        <p style={{fontSize:13,margin:0,lineHeight:1.6,fontStyle:"italic"}}>"{l.text}"</p>
+                    {isEditing?(
+                      <div>
+                        <textarea value={editingLyric.text} onChange={e=>setEditingLyric(v=>({...v,text:e.target.value}))}
+                          style={{width:"100%",minHeight:60,resize:"vertical",borderRadius:6,border:`1.5px solid ${cc.c}`,padding:"7px",fontSize:13,color:"#111",background:"#fff",boxSizing:"border-box",fontFamily:"system-ui,sans-serif",marginBottom:6}}/>
+                        <div style={{display:"flex",gap:6,marginBottom:6}}>
+                          <input value={editingLyric.song} onChange={e=>setEditingLyric(v=>({...v,song:e.target.value}))} placeholder="Song name"
+                            style={{...inpBase(cc.c,"#fff"),flex:1,minWidth:0}}/>
+                          <input value={editingLyric.artist} onChange={e=>setEditingLyric(v=>({...v,artist:e.target.value}))} placeholder="Artist"
+                            style={{...inpBase(cc.c,"#fff"),flex:1,minWidth:0}}/>
+                        </div>
+                        <div style={{display:"flex",gap:6,marginBottom:6}}>
+                          <select value={editingLyric.cat} onChange={e=>setEditingLyric(v=>({...v,cat:e.target.value}))} style={{...selStyle(cc.c,"#fff",darken(cc.c)),flex:1}}>
+                            {CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                        <div style={{display:"flex",gap:6}}>
+                          <button onClick={saveEditLyric} style={{...smBtn(cc.c,cc.cD,"#fff"),flex:1}}>Save</button>
+                          <button onClick={()=>setEditingLyric(null)} style={{...smBtn("#ccc","#f5f5f5","#555"),flex:1}}>Cancel</button>
+                        </div>
                       </div>
-                      <span onClick={()=>delLyric(l.id)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1,flexShrink:0}}>×</span>
-                    </div>
+                    ):(
+                      <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                        {l.img?<img src={l.img} alt="album" style={{width:52,height:52,borderRadius:6,objectFit:"cover",border:`2px solid ${cc.c}`,flexShrink:0}}/>
+                          :<div style={{width:52,height:52,borderRadius:6,background:cc.c+"33",border:`2px solid ${cc.c}`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>♪</div>}
+                        <div style={{flex:1,minWidth:0}}>
+                          <span style={{fontSize:9,fontWeight:700,opacity:0.6,display:"block",marginBottom:2}}>{l.cat||"Uncategorized"}</span>
+                          <p style={{fontSize:11,fontWeight:700,margin:"0 0 3px"}}>{l.song}{l.artist?` — ${l.artist}`:""}</p>
+                          <p style={{fontSize:13,margin:0,lineHeight:1.6,fontStyle:"italic"}}>"{l.text}"</p>
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",gap:6,flexShrink:0}}>
+                          <span onClick={()=>setEditingLyric({id:l.id,text:l.text,song:l.song,artist:l.artist||"",img:l.img||"",cat:l.cat||"Uncategorized"})} style={{cursor:"pointer",color:cc.cD,fontWeight:700,fontSize:14,lineHeight:1,opacity:0.6}}>✏️</span>
+                          <span onClick={()=>delLyric(l.id)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1084,18 +1138,41 @@ function Journal({user,onSignOut}){
                 </div>
               </div>
               {memories.length===0&&<p style={{fontSize:13,color:"#999",textAlign:"center",margin:"16px 0"}}>No memories saved yet.</p>}
-              {[...memories].sort((a,b)=>b.date.localeCompare(a.date)).map(m=>(
-                <div key={m.id} style={{border:"2px solid #BA7517",borderRadius:8,padding:"10px 12px",marginBottom:8,background:"#FAEEDA",color:"#412402"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
-                    <div style={{flex:1}}>
-                      <p style={{fontSize:10,fontWeight:700,opacity:0.6,margin:"0 0 3px"}}>{new Date(m.date+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</p>
-                      <p style={{fontSize:14,fontWeight:700,margin:"0 0 5px"}}>{m.title}</p>
-                      <p style={{fontSize:13,margin:0,lineHeight:1.6}}>{m.desc}</p>
-                    </div>
-                    <span onClick={()=>delMemory(m.id)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1,flexShrink:0}}>×</span>
+              {[...memories].sort((a,b)=>b.date.localeCompare(a.date)).map(m=>{
+                const isEditing=editingMemory?.id===m.id;
+                return(
+                  <div key={m.id} style={{border:"2px solid #BA7517",borderRadius:8,padding:"10px 12px",marginBottom:8,background:"#FAEEDA",color:"#412402"}}>
+                    {isEditing?(
+                      <div>
+                        <input value={editingMemory.title} onChange={e=>setEditingMemory(v=>({...v,title:e.target.value}))} placeholder="Title"
+                          style={{...inpBase("#BA7517","#fff"),display:"block",width:"100%",boxSizing:"border-box",marginBottom:6}}/>
+                        <textarea value={editingMemory.desc} onChange={e=>setEditingMemory(v=>({...v,desc:e.target.value}))} placeholder="Describe the memory..."
+                          style={{width:"100%",minHeight:80,resize:"vertical",borderRadius:6,border:"1.5px solid #BA7517",padding:"7px",fontSize:13,color:"#111",background:"#fff",boxSizing:"border-box",fontFamily:"system-ui,sans-serif",marginBottom:6}}/>
+                        <div style={{display:"flex",gap:6,marginBottom:6}}>
+                          <input type="date" value={editingMemory.date} onChange={e=>setEditingMemory(v=>({...v,date:e.target.value}))}
+                            style={{...inpBase("#BA7517","#fff"),flex:1}}/>
+                        </div>
+                        <div style={{display:"flex",gap:6}}>
+                          <button onClick={saveEditMemory} style={{...smBtn("#BA7517","#412402","#fff"),flex:1}}>Save</button>
+                          <button onClick={()=>setEditingMemory(null)} style={{...smBtn("#ccc","#f5f5f5","#555"),flex:1}}>Cancel</button>
+                        </div>
+                      </div>
+                    ):(
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                        <div style={{flex:1}}>
+                          <p style={{fontSize:10,fontWeight:700,opacity:0.6,margin:"0 0 3px"}}>{new Date(m.date+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</p>
+                          <p style={{fontSize:14,fontWeight:700,margin:"0 0 5px"}}>{m.title}</p>
+                          <p style={{fontSize:13,margin:0,lineHeight:1.6}}>{m.desc}</p>
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",gap:6,flexShrink:0}}>
+                          <span onClick={()=>setEditingMemory({id:m.id,title:m.title,desc:m.desc,date:m.date})} style={{cursor:"pointer",color:"#412402",fontWeight:700,fontSize:14,lineHeight:1,opacity:0.6}}>✏️</span>
+                          <span onClick={()=>delMemory(m.id)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
