@@ -143,7 +143,7 @@ function HsbPicker({hex,onChange}){
 
 function CalorieGoalScreen({calTarget,onSave,onBack}){
   const [mode,setMode]=useState("simple");
-  const [simpleVal,setSimpleVal]=useState(calTarget);
+  const [simpleVal,setSimpleVal]=useState(String(calTarget));
   const [age,setAge]=useState("");
   const [gender,setGender]=useState("male");
   const [height,setHeight]=useState("");
@@ -190,9 +190,10 @@ function CalorieGoalScreen({calTarget,onSave,onBack}){
       {mode==="simple"&&(
         <div style={{background:"#EEEDFE",border:"2px solid #7F77DD",borderRadius:10,padding:"16px"}}>
           <p style={{fontSize:13,color:"#26215C",marginBottom:10}}>Enter your daily calorie target:</p>
-          <input type="number" value={simpleVal} onChange={e=>setSimpleVal(Number(e.target.value))}
+          <input type="number" value={simpleVal} onChange={e=>setSimpleVal(e.target.value)}
+            onBlur={()=>setSimpleVal(v=>v===""?"0":v)}
             style={{...inp,fontSize:20,fontWeight:700,textAlign:"center",marginBottom:12}}/>
-          <button onClick={()=>onSave(Math.round(simpleVal/10)*10)} style={{...smBtn("#7F77DD","#26215C","#fff"),width:"100%",padding:"10px",fontSize:14}}>Save target</button>
+          <button onClick={()=>onSave(Math.round((Number(simpleVal)||0)/10)*10)} style={{...smBtn("#7F77DD","#26215C","#fff"),width:"100%",padding:"10px",fontSize:14}}>Save target</button>
         </div>
       )}
       {mode==="calc"&&(
@@ -1250,7 +1251,8 @@ function Journal({user,onSignOut}){
                       {[["cal","Kcal"],["protein","Protein g"],["carbs","Carbs g"],["fat","Fat g"]].map(([k,label])=>(
                         <div key={k}>
                           <p style={{fontSize:10,fontWeight:700,color:"#888",margin:"0 0 3px"}}>{label}</p>
-                          <input type="number" value={editingFavMeal[k]} onChange={e=>setEditingFavMeal(v=>({...v,[k]:Number(e.target.value)}))}
+                          <input type="number" value={editingFavMeal[k]} onChange={e=>setEditingFavMeal(v=>({...v,[k]:e.target.value}))}
+                            onBlur={()=>setEditingFavMeal(v=>({...v,[k]:v[k]===""?0:Number(v[k])}))}
                             style={{...inpBase("#7F77DD","#fff"),width:"100%",boxSizing:"border-box",padding:"5px 7px"}}/>
                         </div>
                       ))}
