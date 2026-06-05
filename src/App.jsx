@@ -81,11 +81,15 @@ function ld(k,d){try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(d
 function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 function ldk(uid,k){return `dj_${uid}_${k}`;}
 function hasData(e){return e&&(e.mood!=null||e.note||Object.values(e.habits||{}).some(Boolean));}
-function calcStreak(data){let s=0,d=new Date();while(true){const k=fmt(d);if(hasData(data[k])){s++;d.setDate(d.getDate()-1);}else break;}return s;}
+function calcStreak(data){let s=0,d=new Date(),graceUsed=false;while(true){const k=fmt(d);if(hasData(data[k])){s++;graceUsed=false;d.setDate(d.getDate()-1);}else if(!graceUsed){graceUsed=true;d.setDate(d.getDate()-1);}else break;}return s;}
 function calcLongest(data){
-  let best=0,cur=0;const keys=Object.keys(data).sort();if(!keys.length)return 0;
+  let best=0,cur=0,graceUsed=false;const keys=Object.keys(data).sort();if(!keys.length)return 0;
   const start=new Date(keys[0]+"T12:00:00"),end=new Date();
-  for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){if(hasData(data[fmt(d)])){cur++;best=Math.max(best,cur);}else cur=0;}
+  for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+    if(hasData(data[fmt(d)])){cur++;graceUsed=false;best=Math.max(best,cur);}
+    else if(!graceUsed){graceUsed=true;}
+    else{cur=0;graceUsed=false;}
+  }
   return best;
 }
 function getWeekDays(data,offset){
