@@ -145,6 +145,14 @@ function HsbPicker({hex,onChange}){
   );
 }
 
+function HeartIcon({filled,color,size=18}){
+  return(
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={filled?color:"none"} stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{display:"block",flexShrink:0}}>
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+    </svg>
+  );
+}
+
 function CalorieGoalScreen({calTarget,onSave,onBack}){
   const [mode,setMode]=useState("simple");
   const [simpleVal,setSimpleVal]=useState(String(calTarget));
@@ -871,7 +879,9 @@ function Journal({user,onSignOut}){
             <span style={{fontSize:10,fontWeight:700,display:"block",marginBottom:6}}>LOG A MEAL</span>
             <div style={{display:"flex",gap:6}}>
               <input style={inpBase(C("cal"),"#fff")} placeholder='"40g chocolate" or "240kcal pasta"' value={mealInput} onChange={e=>{setMealInput(e.target.value);setMealError("");}} onKeyDown={e=>e.key==="Enter"&&logMeal()}/>
-              <button onClick={()=>setShowFavMeals(true)} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("cal")}`,background:lighten(C("cal")),color:darken(C("cal")),cursor:"pointer",fontSize:16,fontWeight:700,flexShrink:0}}>⭐</button>
+              <button onClick={()=>setShowFavMeals(true)} style={{padding:"5px 8px",borderRadius:6,border:`2px solid ${C("cal")}`,background:lighten(C("cal")),cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <HeartIcon filled={favMeals.length>0} color={darken(C("cal"))} size={18}/>
+              </button>
               <button onClick={logMeal} disabled={mealLoading||!mealInput.trim()} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("cal")}`,background:darken(C("cal")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,opacity:mealLoading||!mealInput.trim()?0.5:1,minWidth:52,flexShrink:0}}>
                 {mealLoading?"...":"Log"}
               </button>
@@ -893,7 +903,9 @@ function Journal({user,onSignOut}){
                       </div>
                       <span style={{fontSize:11,opacity:0.7}}>P {m.protein}g · C {m.carbs}g · F {m.fat}g</span>
                     </div>
-                    <span onClick={()=>!alreadyFav&&saveFavMeal(m)} title={alreadyFav?"Already saved":"Save as favourite"} style={{cursor:alreadyFav?"default":"pointer",fontSize:15,opacity:alreadyFav?0.3:1,flexShrink:0}}>⭐</span>
+                    <span onClick={()=>!alreadyFav&&saveFavMeal(m)} title={alreadyFav?"Already saved":"Save as favourite"} style={{cursor:alreadyFav?"default":"pointer",display:"flex",alignItems:"center",flexShrink:0}}>
+                      <HeartIcon filled={alreadyFav} color={darken(C("cal"))} size={18}/>
+                    </span>
                     <span onClick={()=>delMeal(m.id)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1,flexShrink:0}}>×</span>
                   </div>
                 );
@@ -1255,10 +1267,10 @@ function Journal({user,onSignOut}){
         <div onClick={()=>{setShowFavMeals(false);setEditingFavMeal(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
           <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:14,padding:"16px",width:"100%",maxWidth:420,maxHeight:"70vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <span style={{fontSize:15,fontWeight:700,color:"#111"}}>⭐ Favourite meals</span>
+              <span style={{fontSize:15,fontWeight:700,color:"#111"}}>Favourite meals</span>
               <span onClick={()=>{setShowFavMeals(false);setEditingFavMeal(null);}} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:20,lineHeight:1}}>×</span>
             </div>
-            {favMeals.length===0&&<p style={{fontSize:13,color:"#999",textAlign:"center",margin:"20px 0"}}>No favourites yet. Tap ⭐ next to a logged meal to save it.</p>}
+            {favMeals.length===0&&<p style={{fontSize:13,color:"#999",textAlign:"center",margin:"20px 0"}}>No favourites yet. Tap the heart next to a logged meal to save it.</p>}
             {favMeals.map(f=>(
               <div key={f.id} style={{marginBottom:10,padding:"10px",borderRadius:8,background:"#f9f9f9",border:"1.5px solid #eee"}}>
                 {editingFavMeal?.id===f.id?(
