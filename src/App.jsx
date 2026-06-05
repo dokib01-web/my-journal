@@ -449,7 +449,7 @@ function Journal({user,onSignOut}){
   const K={
     data:ldk(uid,"data"),habits:ldk(uid,"habits"),todos:ldk(uid,"todos"),
     quotes:ldk(uid,"quotes"),lyrics:ldk(uid,"lyrics"),memories:ldk(uid,"memories"),
-    meals:ldk(uid,"meals"),calTarget:ldk(uid,"caltarget"),theme:ldk(uid,"theme"),
+    meals:ldk(uid,"meals"),calTarget:ldk(uid,"caltarget"),theme:ldk(uid,"theme"),favmeals:ldk(uid,"favmeals"),
   };
   const [data,setData]           = useState(()=>ld(K.data,{}));
   const [habits,setHabits]       = useState(()=>ld(K.habits,DEFAULT_HABITS));
@@ -458,11 +458,14 @@ function Journal({user,onSignOut}){
   const [lyrics,setLyrics]       = useState(()=>ld(K.lyrics,[]));
   const [memories,setMemories]   = useState(()=>ld(K.memories,[]));
   const [meals,setMeals]         = useState(()=>ld(K.meals,{}));
+  const [favMeals,setFavMeals]   = useState(()=>ld(K.favmeals,[]));
   const [calTarget,setCalTarget] = useState(()=>ld(K.calTarget,2200));
   const [theme,setTheme]         = useState(()=>ld(K.theme,DEFAULT_THEME));
   const [synced,setSynced]       = useState(false);
   const [showSettings,setShowSettings] = useState(false);
   const [showCalGoal,setShowCalGoal]   = useState(false);
+  const [showFavMeals,setShowFavMeals] = useState(false);
+  const [editingFavMeal,setEditingFavMeal] = useState(null); // {id,name,cal,protein,carbs,fat,amount}
   const [view,setView]           = useState("today");
   const [activeDay,setActiveDay] = useState(todayKey());
   const [calDay,setCalDay]       = useState(todayKey());
@@ -520,6 +523,7 @@ function Journal({user,onSignOut}){
           if(m.lyrics){sv(K.lyrics,m.lyrics);setLyrics(m.lyrics);}
           if(m.memories){sv(K.memories,m.memories);setMemories(m.memories);}
           if(m.meals){sv(K.meals,m.meals);setMeals(m.meals);}
+          if(m.favmeals){sv(K.favmeals,m.favmeals);setFavMeals(m.favmeals);}
           if(m.caltarget!=null){sv(K.calTarget,m.caltarget);setCalTarget(m.caltarget);}
           if(m.theme){sv(K.theme,m.theme);setTheme({...DEFAULT_THEME,...m.theme});}
         }
@@ -605,27 +609,50 @@ function Journal({user,onSignOut}){
   async function logMeal(){
     if(!mealInput.trim())return;setMealLoading(true);
     try{
-      const kcalMatch=mealInput.match(/(\d+(?:\.\d+)?)\s*(?:kcals?|cals?|calories?)/i);
-      if(kcalMatch){
-        const targetCal=parseFloat(kcalMatch[1]);
-        const foodName=mealInput.replace(/(\d+(?:\.\d+)?)\s*(?:kcals?|cals?|calories?)/i,"").trim();
-        const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(foodName||mealInput)}`,{headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}});
+      // Word-boundary regex helpers — unit must follow a number and not be inside a word
+      const amountMatch=mealInput.match(/^(\d+(?:\.\d+)?)\s*(kg|g|grams?|ml|mL|liters?|litres?|L)\b(.*)$/i);
+      const kcalMatch=mealInput.match(/^(.*?)\b(\d+(?:\.\d+)?)\s*(kcals?|cals?|calories?)\b(.*)$/i);
+      if(amountMatch){
+        const amount=parseFloat(amountMatch[1]);
+        const unit=amountMatch[2];
+        const foodName=amountMatch[3].trim()||mealInput;
+        const displayUnit=unit.toLowerCase().startsWith("g")||unit.toLowerCase()==="kg"
+          ?(unit.toLowerCase()==="kg"?`${amount}kg`:`${amount}g`)
+          :(unit.toLowerCase()==="l"||unit.toLowerCase().startsWith("liter")||unit.toLowerCase().startsWith("litre")?`${amount}L`:`${amount}ml`);
+        const queryAmount=unit.toLowerCase()==="kg"?`${amount*1000}g chocolate`
+          :unit.toLowerCase()==="l"||unit.toLowerCase().startsWith("liter")||unit.toLowerCase().startsWith("litre")?`${amount*1000}ml ${foodName}`
+          :`${amount}${unit} ${foodName}`;
+        const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(queryAmount)}`,{headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}});
+        const d=await res.json();
+        if(!d.items||d.items.length===0)throw new Error("No results");
+        const totals=d.items.reduce((acc,item)=>({cal:acc.cal+item.calories,protein:acc.protein+item.protein_g,carbs:acc.carbs+item.carbohydrates_total_g,fat:acc.fat+item.fat_total_g}),{cal:0,protein:0,carbs:0,fat:0});
+        const newMeal={id:Date.now(),name:foodName,amount:displayUnit,cal:Math.round(totals.cal),protein:Math.round(totals.protein),carbs:Math.round(totals.carbs),fat:Math.round(totals.fat)};
+        const updated={...meals,[calDay]:[...calDayMeals,newMeal]};setMeals(updated);saveAndSync(K.meals,"meals",updated);setMealInput("");
+      } else if(kcalMatch){
+        const targetCal=parseFloat(kcalMatch[2]);
+        const foodName=(kcalMatch[1]+kcalMatch[4]).trim()||mealInput;
+        const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(foodName)}`,{headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}});
         const d=await res.json();
         let protein=0,carbs=0,fat=0;
         if(d.items&&d.items.length>0){const baseCal=d.items.reduce((a,x)=>a+x.calories,0);const ratio=baseCal>0?targetCal/baseCal:1;protein=Math.round(d.items.reduce((a,x)=>a+x.protein_g,0)*ratio);carbs=Math.round(d.items.reduce((a,x)=>a+x.carbohydrates_total_g,0)*ratio);fat=Math.round(d.items.reduce((a,x)=>a+x.fat_total_g,0)*ratio);}
-        const newMeal={id:Date.now(),name:foodName||mealInput,cal:Math.round(targetCal),protein,carbs,fat};
+        const newMeal={id:Date.now(),name:foodName,amount:"",cal:Math.round(targetCal),protein,carbs,fat};
         const updated={...meals,[calDay]:[...calDayMeals,newMeal]};setMeals(updated);saveAndSync(K.meals,"meals",updated);setMealInput("");
       } else {
         const res=await fetch(`https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(mealInput)}`,{headers:{"X-Api-Key":import.meta.env.VITE_CALORIE_API_KEY}});
         const d=await res.json();
         if(!d.items||d.items.length===0)throw new Error("No results");
         const totals=d.items.reduce((acc,item)=>({cal:acc.cal+item.calories,protein:acc.protein+item.protein_g,carbs:acc.carbs+item.carbohydrates_total_g,fat:acc.fat+item.fat_total_g}),{cal:0,protein:0,carbs:0,fat:0});
-        const newMeal={id:Date.now(),name:mealInput.trim(),cal:Math.round(totals.cal),protein:Math.round(totals.protein),carbs:Math.round(totals.carbs),fat:Math.round(totals.fat)};
+        const newMeal={id:Date.now(),name:mealInput.trim(),amount:"",cal:Math.round(totals.cal),protein:Math.round(totals.protein),carbs:Math.round(totals.carbs),fat:Math.round(totals.fat)};
         const updated={...meals,[calDay]:[...calDayMeals,newMeal]};setMeals(updated);saveAndSync(K.meals,"meals",updated);setMealInput("");
       }
-    }catch(e){console.error(e);}
+    }catch(e){console.error(e);setMealError("Couldn't find that food. Try a different name.");}
     setMealLoading(false);
   }
+  const [mealError,setMealError]=useState("");
+  function saveFavMeal(meal){const f=[...favMeals,{id:Date.now(),name:meal.name,amount:meal.amount||"",cal:meal.cal,protein:meal.protein,carbs:meal.carbs,fat:meal.fat}];setFavMeals(f);saveAndSync(K.favmeals,"favmeals",f);}
+  function delFavMeal(id){const f=favMeals.filter(x=>x.id!==id);setFavMeals(f);saveAndSync(K.favmeals,"favmeals",f);}
+  function saveEditFavMeal(){if(!editingFavMeal)return;const f=favMeals.map(x=>x.id===editingFavMeal.id?{...x,...editingFavMeal}:x);setFavMeals(f);saveAndSync(K.favmeals,"favmeals",f);setEditingFavMeal(null);}
+  function logFavMeal(fav){const newMeal={id:Date.now(),name:fav.name,amount:fav.amount||"",cal:fav.cal,protein:fav.protein,carbs:fav.carbs,fat:fav.fat};const updated={...meals,[calDay]:[...calDayMeals,newMeal]};setMeals(updated);saveAndSync(K.meals,"meals",updated);setShowFavMeals(false);}
   function buildCopy(){
     const lines=[`Journal entry — ${activeDateLabel}`,``];
     lines.push(entry.mood!=null?`Mood: ${MOODS[entry.mood]} ${MOOD_LABELS[entry.mood]} (${entry.mood+1}/5)`:"Mood: not logged");
@@ -837,28 +864,34 @@ function Journal({user,onSignOut}){
           <div style={card("cal")}>
             <span style={{fontSize:10,fontWeight:700,display:"block",marginBottom:6}}>LOG A MEAL</span>
             <div style={{display:"flex",gap:6}}>
-              <input style={inpBase(C("cal"),"#fff")} placeholder='"pasta" or "240kcal chocolate"' value={mealInput} onChange={e=>setMealInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&logMeal()}/>
-              <button onClick={logMeal} disabled={mealLoading||!mealInput.trim()} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("cal")}`,background:darken(C("cal")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,opacity:mealLoading||!mealInput.trim()?0.5:1,minWidth:52}}>
+              <input style={inpBase(C("cal"),"#fff")} placeholder='"40g chocolate" or "240kcal pasta"' value={mealInput} onChange={e=>{setMealInput(e.target.value);setMealError("");}} onKeyDown={e=>e.key==="Enter"&&logMeal()}/>
+              <button onClick={()=>setShowFavMeals(true)} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("cal")}`,background:lighten(C("cal")),color:darken(C("cal")),cursor:"pointer",fontSize:16,fontWeight:700,flexShrink:0}}>⭐</button>
+              <button onClick={logMeal} disabled={mealLoading||!mealInput.trim()} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("cal")}`,background:darken(C("cal")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700,opacity:mealLoading||!mealInput.trim()?0.5:1,minWidth:52,flexShrink:0}}>
                 {mealLoading?"...":"Log"}
               </button>
             </div>
             {mealLoading&&<p style={{fontSize:12,opacity:0.6,margin:"6px 0 0"}}>Looking up calories...</p>}
+            {mealError&&<p style={{fontSize:12,color:"#D85A30",margin:"6px 0 0"}}>{mealError}</p>}
           </div>
           {calDayMeals.length>0&&(
             <div style={card("cal")}>
               <span style={{fontSize:10,fontWeight:700,display:"block",marginBottom:6}}>MEALS</span>
-              {calDayMeals.map(m=>(
-                <div key={m.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,padding:"8px 10px",borderRadius:7,background:"rgba(255,255,255,0.4)",border:"1px solid rgba(0,0,0,0.08)"}}>
-                  <div style={{flex:1}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-                      <span style={{fontSize:13,fontWeight:600}}>{m.name}</span>
-                      <span style={{fontSize:13,fontWeight:700}}>{m.cal} kcal</span>
+              {calDayMeals.map(m=>{
+                const alreadyFav=favMeals.some(f=>f.name===m.name&&f.cal===m.cal);
+                return(
+                  <div key={m.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,padding:"8px 10px",borderRadius:7,background:"rgba(255,255,255,0.4)",border:"1px solid rgba(0,0,0,0.08)"}}>
+                    <div style={{flex:1}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+                        <span style={{fontSize:13,fontWeight:600}}>{m.name}{m.amount?` · ${m.amount}`:""}</span>
+                        <span style={{fontSize:13,fontWeight:700}}>{m.cal} kcal</span>
+                      </div>
+                      <span style={{fontSize:11,opacity:0.7}}>P {m.protein}g · C {m.carbs}g · F {m.fat}g</span>
                     </div>
-                    <span style={{fontSize:11,opacity:0.7}}>P {m.protein}g · C {m.carbs}g · F {m.fat}g</span>
+                    <span onClick={()=>!alreadyFav&&saveFavMeal(m)} title={alreadyFav?"Already saved":"Save as favourite"} style={{cursor:alreadyFav?"default":"pointer",fontSize:15,opacity:alreadyFav?0.3:1,flexShrink:0}}>⭐</span>
+                    <span onClick={()=>delMeal(m.id)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1,flexShrink:0}}>×</span>
                   </div>
-                  <span onClick={()=>delMeal(m.id)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1,flexShrink:0}}>×</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -1193,6 +1226,56 @@ function Journal({user,onSignOut}){
               })}
             </div>
           )}
+        </div>
+      )}
+      {showFavMeals&&(
+        <div onClick={()=>{setShowFavMeals(false);setEditingFavMeal(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:14,padding:"16px",width:"100%",maxWidth:420,maxHeight:"70vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.2)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <span style={{fontSize:15,fontWeight:700,color:"#111"}}>⭐ Favourite meals</span>
+              <span onClick={()=>{setShowFavMeals(false);setEditingFavMeal(null);}} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:20,lineHeight:1}}>×</span>
+            </div>
+            {favMeals.length===0&&<p style={{fontSize:13,color:"#999",textAlign:"center",margin:"20px 0"}}>No favourites yet. Tap ⭐ next to a logged meal to save it.</p>}
+            {favMeals.map(f=>(
+              <div key={f.id} style={{marginBottom:10,padding:"10px",borderRadius:8,background:"#f9f9f9",border:"1.5px solid #eee"}}>
+                {editingFavMeal?.id===f.id?(
+                  <div>
+                    <div style={{display:"flex",gap:6,marginBottom:6}}>
+                      <input value={editingFavMeal.name} onChange={e=>setEditingFavMeal(v=>({...v,name:e.target.value}))} placeholder="Name"
+                        style={{...inpBase("#7F77DD","#fff"),flex:2}}/>
+                      <input value={editingFavMeal.amount} onChange={e=>setEditingFavMeal(v=>({...v,amount:e.target.value}))} placeholder="e.g. 40g"
+                        style={{...inpBase("#7F77DD","#fff"),flex:1}}/>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6,marginBottom:8}}>
+                      {[["cal","Kcal"],["protein","Protein g"],["carbs","Carbs g"],["fat","Fat g"]].map(([k,label])=>(
+                        <div key={k}>
+                          <p style={{fontSize:10,fontWeight:700,color:"#888",margin:"0 0 3px"}}>{label}</p>
+                          <input type="number" value={editingFavMeal[k]} onChange={e=>setEditingFavMeal(v=>({...v,[k]:Number(e.target.value)}))}
+                            style={{...inpBase("#7F77DD","#fff"),width:"100%",boxSizing:"border-box",padding:"5px 7px"}}/>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{display:"flex",gap:6}}>
+                      <button onClick={saveEditFavMeal} style={{...smBtn("#7F77DD","#26215C","#fff"),flex:1}}>Save</button>
+                      <button onClick={()=>setEditingFavMeal(null)} style={{...smBtn("#ccc","#f5f5f5","#555"),flex:1}}>Cancel</button>
+                    </div>
+                  </div>
+                ):(
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{flex:1,cursor:"pointer"}} onClick={()=>logFavMeal(f)}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+                        <span style={{fontSize:13,fontWeight:600}}>{f.name}{f.amount?` · ${f.amount}`:""}</span>
+                        <span style={{fontSize:13,fontWeight:700}}>{f.cal} kcal</span>
+                      </div>
+                      <span style={{fontSize:11,color:"#888"}}>P {f.protein}g · C {f.carbs}g · F {f.fat}g</span>
+                    </div>
+                    <span onClick={()=>setEditingFavMeal({...f})} style={{cursor:"pointer",fontSize:14,opacity:0.5}}>✏️</span>
+                    <span onClick={()=>delFavMeal(f.id)} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
