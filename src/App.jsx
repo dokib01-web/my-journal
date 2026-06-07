@@ -13,7 +13,7 @@ const DEFAULT_HABITS = [
   {name:"Cycling",freq:3},{name:"Journaling",freq:7},{name:"Good sleep",freq:7},{name:"Healthy eating",freq:5}
 ];
 const FREQ_OPTIONS = [1,2,3,4,5,6,7];
-const DAY_SHORT = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+const DAY_SHORT = ["Mo","Tu","We","Th","Fr","Sa","Su"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const TABS = [["today","Today"],["todos","To-do"],["cal","Calories"],["weekly","Weekly"],["progress","Progress"],["other","Other"]];
 const TAB_ORDER = TABS.map(([v])=>v);
@@ -579,7 +579,7 @@ function Journal({user,onSignOut}){
   const avgMood=moodVals.length?Math.round(moodVals.reduce((a,b)=>a+b,0)/moodVals.length*10)/10:null;
   const weekLogged=w7.filter(x=>hasData(x.entry)).length;
   const monthKeys=getMonthKeys(calYear,calMonth);
-  const firstDay=new Date(calYear,calMonth,1).getDay();
+  const firstDay=new Date(calYear,calMonth,1).getDay();const firstDayMon=firstDay===0?6:firstDay-1;
   const doneCount=todos.filter(x=>x.done).length;
   const pendingCount=todos.filter(x=>!x.done).length;
   const streak=calcStreak(data);
@@ -941,7 +941,7 @@ function Journal({user,onSignOut}){
                 <div key={key} onClick={()=>{setActiveDay(key);setView("today");}}
                   style={{display:"flex",gap:8,alignItems:"center",marginBottom:5,padding:"7px 8px",borderRadius:6,border:`2px solid ${hd?C("weekly"):"transparent"}`,background:hd?"rgba(255,255,255,0.3)":"transparent",cursor:"pointer"}}>
                   <div style={{minWidth:30,textAlign:"center"}}>
-                    <p style={{fontSize:10,margin:0,fontWeight:700,opacity:0.7}}>{DAY_SHORT[date.getDay()]}</p>
+                    <p style={{fontSize:10,margin:0,fontWeight:700,opacity:0.7}}>{DAY_SHORT[date.getDay()===0?6:date.getDay()-1]}</p>
                     <p style={{fontSize:15,fontWeight:700,margin:0}}>{date.getDate()}</p>
                   </div>
                   <div style={{flex:1,minWidth:0}}>
@@ -1011,7 +1011,7 @@ function Journal({user,onSignOut}){
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
               {DAY_SHORT.map(d=><div key={d} style={{fontSize:10,textAlign:"center",fontWeight:700,padding:"2px 0",opacity:0.7}}>{d}</div>)}
-              {Array(firstDay).fill(null).map((_,i)=><div key={"e"+i}/>)}
+              {Array(firstDayMon).fill(null).map((_,i)=><div key={"e"+i}/>)}
               {monthKeys.map((key,i)=>{
                 const e=data[key];const logged=hasData(e);const isTod=key===today;const isPast=key<=today;
                 return(
