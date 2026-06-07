@@ -153,16 +153,18 @@ function HeartIcon({filled,color,size=18}){
   );
 }
 
-function CalorieGoalScreen({calTarget,onSave,onBack}){
+function CalorieGoalScreen({calTarget,savedGoalWeight,onSave,onGoalWeightChange,onBack}){
   const [mode,setMode]=useState("simple");
   const [simpleVal,setSimpleVal]=useState(String(calTarget));
   const [age,setAge]=useState("");
   const [gender,setGender]=useState("male");
   const [height,setHeight]=useState("");
   const [weight,setWeight]=useState("");
-  const [goalWeight,setGoalWeight]=useState("");
+  const [goalWeight,setGoalWeight]=useState(savedGoalWeight!=null?String(savedGoalWeight):"");
   const [activity,setActivity]=useState("moderate");
   const [result,setResult]=useState(null);
+
+  function handleGoalWeightChange(val){setGoalWeight(val);if(val&&!isNaN(Number(val)))onGoalWeightChange(Number(val));}
 
   function calculate(){
     const a=Number(age),h=Number(height),w=Number(weight),gw=Number(goalWeight);
@@ -234,7 +236,7 @@ function CalorieGoalScreen({calTarget,onSave,onBack}){
               </div>
               <div>
                 <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Goal weight (kg)</p>
-                <input type="number" placeholder="e.g. 68" value={goalWeight} onChange={e=>setGoalWeight(e.target.value)} style={inp}/>
+                <input type="number" placeholder="e.g. 68" value={goalWeight} onChange={e=>handleGoalWeightChange(e.target.value)} style={inp}/>
               </div>
               <div>
                 <p style={{fontSize:11,fontWeight:700,color:"#26215C",marginBottom:5}}>Activity level</p>
@@ -463,6 +465,7 @@ function Journal({user,onSignOut}){
     data:ldk(uid,"data"),habits:ldk(uid,"habits"),todos:ldk(uid,"todos"),
     quotes:ldk(uid,"quotes"),lyrics:ldk(uid,"lyrics"),memories:ldk(uid,"memories"),
     meals:ldk(uid,"meals"),calTarget:ldk(uid,"caltarget"),theme:ldk(uid,"theme"),favmeals:ldk(uid,"favmeals"),
+    weightLog:ldk(uid,"weightlog"),goalWeight:ldk(uid,"goalweight"),
   };
   const [data,setData]           = useState(()=>ld(K.data,{}));
   const [habits,setHabits]       = useState(()=>ld(K.habits,DEFAULT_HABITS));
@@ -473,7 +476,12 @@ function Journal({user,onSignOut}){
   const [meals,setMeals]         = useState(()=>ld(K.meals,{}));
   const [favMeals,setFavMeals]   = useState(()=>ld(K.favmeals,[]));
   const [calTarget,setCalTarget] = useState(()=>ld(K.calTarget,2200));
+  const [weightLog,setWeightLog] = useState(()=>ld(K.weightLog,{}));
+  const [goalWeight,setGoalWeight] = useState(()=>ld(K.goalWeight,null));
   const [theme,setTheme]         = useState(()=>ld(K.theme,DEFAULT_THEME));
+  const [progressTab,setProgressTab] = useState("overview");
+  const [weightDay,setWeightDay] = useState(todayKey());
+  const [weightInput,setWeightInput] = useState("");
   const [synced,setSynced]       = useState(false);
   const [showSettings,setShowSettings] = useState(false);
   const [showCalGoal,setShowCalGoal]   = useState(false);
@@ -540,6 +548,8 @@ function Journal({user,onSignOut}){
           if(m.memories){sv(K.memories,m.memories);setMemories(m.memories);}
           if(m.meals){sv(K.meals,m.meals);setMeals(m.meals);}
           if(m.favmeals){sv(K.favmeals,m.favmeals);setFavMeals(m.favmeals);}
+          if(m.weightlog){sv(K.weightLog,m.weightlog);setWeightLog(m.weightlog);}
+          if(m.goalweight!=null){sv(K.goalWeight,m.goalweight);setGoalWeight(m.goalweight);}
           if(m.caltarget!=null){sv(K.calTarget,m.caltarget);setCalTarget(m.caltarget);}
           if(m.theme){sv(K.theme,m.theme);setTheme({...DEFAULT_THEME,...m.theme});}
         }
@@ -669,6 +679,9 @@ function Journal({user,onSignOut}){
   function delFavMeal(id){const f=favMeals.filter(x=>x.id!==id);setFavMeals(f);saveAndSync(K.favmeals,"favmeals",f);}
   function saveEditFavMeal(){if(!editingFavMeal)return;const f=favMeals.map(x=>x.id===editingFavMeal.id?{...x,...editingFavMeal}:x);setFavMeals(f);saveAndSync(K.favmeals,"favmeals",f);setEditingFavMeal(null);}
   function logFavMeal(fav){const newMeal={id:Date.now(),name:fav.name,amount:fav.amount||"",cal:fav.cal,protein:fav.protein,carbs:fav.carbs,fat:fav.fat};const updated={...meals,[calDay]:[...calDayMeals,newMeal]};setMeals(updated);saveAndSync(K.meals,"meals",updated);setShowFavMeals(false);}
+  function logWeight(day,val){const w={...weightLog,[day]:Number(val)};setWeightLog(w);saveAndSync(K.weightLog,"weightlog",w);}
+  function saveGoalWeight(val){setGoalWeight(val);saveAndSync(K.goalWeight,"goalweight",val);}
+  function shiftWeightDay(n){const d=new Date(weightDay+"T12:00:00");d.setDate(d.getDate()+n);const t=new Date();t.setHours(23,59,59);if(d<=t)setWeightDay(fmt(d));}
   function buildCopy(){
     const lines=[`Journal entry — ${activeDateLabel}`,``];
     lines.push(entry.mood!=null?`Mood: ${MOODS[entry.mood]} ${MOOD_LABELS[entry.mood]} (${entry.mood+1}/5)`:"Mood: not logged");
@@ -690,7 +703,7 @@ function Journal({user,onSignOut}){
   }
 
   if(!synced)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",fontFamily:"system-ui",color:"#888"}}>Syncing...</div>;
-  if(showCalGoal)return<CalorieGoalScreen calTarget={calTarget} onBack={()=>setShowCalGoal(false)} onSave={val=>{setCalTarget(val);saveAndSync(K.calTarget,"caltarget",val);setShowCalGoal(false);}}/>;
+  if(showCalGoal)return<CalorieGoalScreen calTarget={calTarget} savedGoalWeight={goalWeight} onGoalWeightChange={val=>{setGoalWeight(val);saveAndSync(K.goalWeight,"goalweight",val);}} onBack={()=>setShowCalGoal(false)} onSave={val=>{setCalTarget(val);saveAndSync(K.calTarget,"caltarget",val);setShowCalGoal(false);}}/>;
   if(showSettings)return<SettingsScreen theme={theme} setTheme={setTheme} saveTheme={saveTheme} onBack={()=>setShowSettings(false)} onSignOut={onSignOut}/>;
 
   return(
@@ -1010,47 +1023,173 @@ function Journal({user,onSignOut}){
               );
             })}
           </div>
-          <div style={card("progress")}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <button onClick={()=>{const d=new Date(calYear,calMonth-1,1);setCalMonth(d.getMonth());setCalYear(d.getFullYear());}} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("progress")}`,background:darken(C("progress")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>←</button>
-              <span style={{fontSize:13,fontWeight:700}}>{MONTHS[calMonth]} {calYear}</span>
-              <button onClick={()=>{const d=new Date(calYear,calMonth+1,1);setCalMonth(d.getMonth());setCalYear(d.getFullYear());}} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("progress")}`,background:darken(C("progress")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>→</button>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
-              {DAY_SHORT.map(d=><div key={d} style={{fontSize:10,textAlign:"center",fontWeight:700,padding:"2px 0",opacity:0.7}}>{d}</div>)}
-              {Array(firstDayMon).fill(null).map((_,i)=><div key={"e"+i}/>)}
-              {monthKeys.map((key,i)=>{
-                const e=data[key];const logged=hasData(e);const isTod=key===today;const isPast=key<=today;
-                return(
-                  <div key={key} onClick={()=>{if(isPast){setActiveDay(key);setView("today");}}}
-                    style={{aspectRatio:"1",borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:isTod?700:400,background:logged?C("progress"):isTod?lighten(C("progress"))+"88":"transparent",color:logged?"#fff":darken(C("progress")),border:isTod&&!logged?`2px solid ${C("progress")}`:"2px solid transparent",cursor:isPast?"pointer":"default",opacity:isPast?1:0.4}}>
-                    {i+1}
-                  </div>
-                );
-              })}
-            </div>
-            <p style={{fontSize:10,margin:"5px 0 0",fontWeight:600,opacity:0.7}}>Tap any day to view or edit it.</p>
+          <div style={{display:"flex",gap:6,marginBottom:8}}>
+            {[["overview","Overview"],["trends","Trends"]].map(([v,label])=>(
+              <button key={v} onClick={()=>setProgressTab(v)} style={{flex:1,padding:"6px 2px",borderRadius:6,border:`2px solid ${progressTab===v?C("progress"):"#ddd"}`,background:progressTab===v?lighten(C("progress")):"#fff",color:progressTab===v?darken(C("progress")):"#333",cursor:"pointer",fontSize:11,fontWeight:progressTab===v?700:400}}>{label}</button>
+            ))}
           </div>
-          <div style={card("progress")}>
-            <span style={{fontSize:10,fontWeight:700,display:"block",marginBottom:8}}>HABITS — LAST 7 DAYS</span>
-            {habits.map(h=>{
-              const last7=getLast7(data);
-              const bars=last7.map(x=>x.entry.habits&&x.entry.habits[h.name]?1:0);
-              const count=bars.reduce((a,b)=>a+b,0);
-              const col=habitColor(count,h.freq);
-              return(
-                <div key={h.name} style={{marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4,alignItems:"baseline"}}>
-                    <div><span style={{fontWeight:600}}>{h.name}</span><span style={{fontSize:10,marginLeft:6,opacity:0.6}}>target {freqLabel(h.freq)}</span></div>
-                    <span style={{fontWeight:700,color:col}}>{count}/{h.freq}</span>
-                  </div>
-                  <div style={{display:"flex",gap:2}}>
-                    {bars.map((v,i)=><div key={i} style={{flex:1,height:7,borderRadius:3,background:v?C("progress"):"rgba(0,0,0,0.1)"}}/>)}
-                  </div>
+          {progressTab==="overview"&&(
+            <div>
+              <div style={card("progress")}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <button onClick={()=>{const d=new Date(calYear,calMonth-1,1);setCalMonth(d.getMonth());setCalYear(d.getFullYear());}} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("progress")}`,background:darken(C("progress")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>←</button>
+                  <span style={{fontSize:13,fontWeight:700}}>{MONTHS[calMonth]} {calYear}</span>
+                  <button onClick={()=>{const d=new Date(calYear,calMonth+1,1);setCalMonth(d.getMonth());setCalYear(d.getFullYear());}} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("progress")}`,background:darken(C("progress")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>→</button>
                 </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
+                  {DAY_SHORT.map(d=><div key={d} style={{fontSize:10,textAlign:"center",fontWeight:700,padding:"2px 0",opacity:0.7}}>{d}</div>)}
+                  {Array(firstDayMon).fill(null).map((_,i)=><div key={"e"+i}/>)}
+                  {monthKeys.map((key,i)=>{
+                    const e=data[key];const logged=hasData(e);const isTod=key===today;const isPast=key<=today;
+                    return(
+                      <div key={key} onClick={()=>{if(isPast){setActiveDay(key);setView("today");}}}
+                        style={{aspectRatio:"1",borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:isTod?700:400,background:logged?C("progress"):isTod?lighten(C("progress"))+"88":"transparent",color:logged?"#fff":darken(C("progress")),border:isTod&&!logged?`2px solid ${C("progress")}`:"2px solid transparent",cursor:isPast?"pointer":"default",opacity:isPast?1:0.4}}>
+                        {i+1}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p style={{fontSize:10,margin:"5px 0 0",fontWeight:600,opacity:0.7}}>Tap any day to view or edit it.</p>
+              </div>
+              <div style={card("progress")}>
+                <span style={{fontSize:10,fontWeight:700,display:"block",marginBottom:8}}>HABITS — LAST 7 DAYS</span>
+                {habits.map(h=>{
+                  const last7=getLast7(data);
+                  const bars=last7.map(x=>x.entry.habits&&x.entry.habits[h.name]?1:0);
+                  const count=bars.reduce((a,b)=>a+b,0);
+                  const col=habitColor(count,h.freq);
+                  return(
+                    <div key={h.name} style={{marginBottom:10}}>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4,alignItems:"baseline"}}>
+                        <div><span style={{fontWeight:600}}>{h.name}</span><span style={{fontSize:10,marginLeft:6,opacity:0.6}}>target {freqLabel(h.freq)}</span></div>
+                        <span style={{fontWeight:700,color:col}}>{count}/{h.freq}</span>
+                      </div>
+                      <div style={{display:"flex",gap:2}}>
+                        {bars.map((v,i)=><div key={i} style={{flex:1,height:7,borderRadius:3,background:v?C("progress"):"rgba(0,0,0,0.1)"}}/>)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {progressTab==="trends"&&(()=>{
+            const isWeightToday=weightDay===today;
+            const todayWeightVal=weightLog[weightDay]!=null?String(weightLog[weightDay]):"";
+            // Build last 30 days array
+            const days30=Array.from({length:30},(_,i)=>{const d=new Date();d.setDate(d.getDate()-29+i);return fmt(d);});
+            // Weight points — fill gaps with linear interpolation
+            const rawW=days30.map(k=>weightLog[k]!=null?weightLog[k]:null);
+            const filledW=rawW.map((v,i)=>{
+              if(v!=null)return{val:v,real:true};
+              // find nearest real points before and after
+              let prev=null,next=null,pi=-1,ni=-1;
+              for(let j=i-1;j>=0;j--){if(rawW[j]!=null){prev=rawW[j];pi=j;break;}}
+              for(let j=i+1;j<30;j++){if(rawW[j]!=null){next=rawW[j];ni=j;break;}}
+              if(prev!=null&&next!=null){const t=(i-pi)/(ni-pi);return{val:prev+(next-prev)*t,real:false};}
+              if(prev!=null)return{val:prev,real:false};
+              if(next!=null)return{val:next,real:false};
+              return null;
+            });
+            const hasWeight=filledW.some(x=>x!=null);
+            // Calorie points
+            const rawCal=days30.map(k=>{const ms=meals[k];return ms&&ms.length>0?ms.reduce((a,m)=>a+m.cal,0):null;});
+            const hasCal=rawCal.some(x=>x!=null);
+            // SVG graph helper
+            function TrendGraph({points,goalLine,color,unit,label}){
+              const W=320,H=120,pad={t:10,r:10,b:24,l:36};
+              const vals=points.filter(x=>x!=null&&x.val!=null).map(x=>x.val);
+              if(vals.length===0)return<p style={{fontSize:12,color:"#aaa",textAlign:"center",margin:"10px 0"}}>No data yet.</p>;
+              const minV=Math.min(...vals,goalLine!=null?goalLine:Infinity)*0.98;
+              const maxV=Math.max(...vals,goalLine!=null?goalLine:0)*1.02;
+              const range=maxV-minV||1;
+              const gW=W-pad.l-pad.r,gH=H-pad.t-pad.b;
+              const xOf=i=>pad.l+i/(points.length-1||1)*gW;
+              const yOf=v=>pad.t+gH-(v-minV)/range*gH;
+              // build path from non-null points
+              const segs=[];let cur=[];
+              points.forEach((p,i)=>{
+                if(p!=null){cur.push([xOf(i),yOf(p.val)]);}
+                else{if(cur.length)segs.push(cur);cur=[];}
+              });
+              if(cur.length)segs.push(cur);
+              return(
+                <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block",overflow:"visible"}}>
+                  {/* Y axis labels */}
+                  {[0,0.5,1].map(t=>{const v=minV+range*t;return(
+                    <text key={t} x={pad.l-4} y={yOf(v)+4} textAnchor="end" fontSize="9" fill="#aaa">{Math.round(v)}</text>
+                  );})}
+                  {/* Goal line */}
+                  {goalLine!=null&&(
+                    <>
+                      <line x1={pad.l} y1={yOf(goalLine)} x2={pad.l+gW} y2={yOf(goalLine)} stroke={color} strokeWidth="1.5" strokeDasharray="5,4" opacity="0.5"/>
+                      <text x={pad.l+gW+2} y={yOf(goalLine)+4} fontSize="9" fill={color} opacity="0.7">goal</text>
+                    </>
+                  )}
+                  {/* Lines */}
+                  {segs.map((seg,si)=>(
+                    <polyline key={si} points={seg.map(([x,y])=>`${x},${y}`).join(" ")} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
+                  ))}
+                  {/* Dots */}
+                  {points.map((p,i)=>p==null?null:(
+                    <circle key={i} cx={xOf(i)} cy={yOf(p.val)} r={p.real?3.5:2} fill={p.real?color:"#fff"} stroke={color} strokeWidth="1.5"/>
+                  ))}
+                  {/* X axis labels — show first, middle, last */}
+                  {[0,14,29].map(i=>(
+                    <text key={i} x={xOf(i)} y={H-4} textAnchor="middle" fontSize="9" fill="#aaa">
+                      {new Date(days30[i]+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"})}
+                    </text>
+                  ))}
+                </svg>
               );
-            })}
-          </div>
+            }
+            return(
+              <div>
+                {/* Weight log input */}
+                <div style={card("progress")}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                    <button onClick={()=>{shiftWeightDay(-1);setWeightInput("");}} style={{...smBtn(C("progress"),darken(C("progress")),"#fff")}}>← Back</button>
+                    <span style={{fontSize:12,fontWeight:700}}>{isWeightToday?"Today":new Date(weightDay+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}</span>
+                    <button onClick={()=>{shiftWeightDay(1);setWeightInput("");}} style={{...smBtn(C("progress"),darken(C("progress")),"#fff"),opacity:weightDay>=today?0.3:1,pointerEvents:weightDay>=today?"none":"auto"}}>Forward →</button>
+                  </div>
+                  <span style={{fontSize:10,fontWeight:700,display:"block",marginBottom:6}}>LOG WEIGHT</span>
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    <input type="number" placeholder={weightLog[weightDay]!=null?`${weightLog[weightDay]} kg`:"e.g. 74.5"}
+                      value={weightInput} onChange={e=>setWeightInput(e.target.value)}
+                      onBlur={()=>setWeightInput(v=>v===""?v:v)}
+                      style={{...inpBase(C("progress"),"#fff"),flex:1}}/>
+                    <span style={{fontSize:12,color:darken(C("progress")),fontWeight:700}}>kg</span>
+                    <button onClick={()=>{if(!weightInput.trim()||isNaN(Number(weightInput)))return;logWeight(weightDay,weightInput);setWeightInput("");}}
+                      disabled={!weightInput.trim()||isNaN(Number(weightInput))}
+                      style={{...smBtn(C("progress"),darken(C("progress")),"#fff"),opacity:!weightInput.trim()||isNaN(Number(weightInput))?0.5:1}}>Log</button>
+                  </div>
+                  {weightLog[weightDay]!=null&&<p style={{fontSize:11,color:darken(C("progress")),margin:"6px 0 0",opacity:0.7}}>Logged: {weightLog[weightDay]} kg</p>}
+                </div>
+                {/* Weight graph */}
+                <div style={card("progress")}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <span style={{fontSize:10,fontWeight:700}}>WEIGHT — LAST 30 DAYS</span>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{fontSize:10,color:"#888"}}>Goal:</span>
+                      <input type="number" placeholder="kg" value={goalWeight!=null?String(goalWeight):""}
+                        onChange={e=>{const v=e.target.value;saveGoalWeight(v===""?null:Number(v));}}
+                        style={{...inpBase(C("progress"),"#fff"),width:60,padding:"3px 6px",fontSize:12}}/>
+                    </div>
+                  </div>
+                  {hasWeight
+                    ?<TrendGraph points={filledW} goalLine={goalWeight} color={C("progress")} unit="kg" label="Weight"/>
+                    :<p style={{fontSize:12,color:"#aaa",textAlign:"center",margin:"10px 0"}}>No weight logged yet.</p>}
+                  <p style={{fontSize:10,opacity:0.5,marginTop:4}}>Filled dots = logged · hollow dots = estimated</p>
+                </div>
+                {/* Calorie graph */}
+                <div style={card("cal")}>                  <span style={{fontSize:10,fontWeight:700,display:"block",marginBottom:8}}>CALORIES — LAST 30 DAYS</span>
+                  {hasCal
+                    ?<TrendGraph points={rawCal.map(v=>v!=null?{val:v,real:true}:null)} goalLine={calTarget} color={C("cal")} unit="kcal" label="Calories"/>
+                    :<p style={{fontSize:12,color:"#aaa",textAlign:"center",margin:"10px 0"}}>No calories logged yet.</p>}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
