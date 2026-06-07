@@ -968,7 +968,7 @@ function Journal({user,onSignOut}){
             {theme.waterTracker!==false&&(()=>{
               const dayWater=waterLog[calDay]||0;
               const wColor=C("water");
-              const{bg,border}=blockStyles(wColor,S("water"));
+              const{bg,border}=blockStyles(wColor,"default");
               return(
                 <div style={{width:76,display:"flex",flexDirection:"column",border:`2px solid ${border}`,borderRadius:8,background:bg,padding:"6px",boxSizing:"border-box"}}>
                   {/* Goal at top */}
