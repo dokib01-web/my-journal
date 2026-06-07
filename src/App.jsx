@@ -93,7 +93,7 @@ function calcLongest(data){
   return best;
 }
 function getWeekDays(data,offset){
-  const d=new Date();d.setDate(d.getDate()-d.getDay()+1-offset*7);d.setHours(0,0,0,0);
+  const d=new Date();const day=d.getDay()===0?7:d.getDay();d.setDate(d.getDate()-day+1-offset*7);d.setHours(0,0,0,0);
   return Array.from({length:7},(_,i)=>{const day=new Date(d);day.setDate(d.getDate()+i);const k=fmt(day);return{key:k,date:day,entry:data[k]||{}};});
 }
 function getLast7(data){return Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);const k=fmt(d);return{key:k,date:d,entry:data[k]||{}};});}
