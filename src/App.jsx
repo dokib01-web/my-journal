@@ -31,10 +31,11 @@ const DEFAULT_BLOCK_COLORS = {
   mood:{h:213,s:72,b:86}, habits:{h:158,s:81,b:62}, notes:{h:244,s:45,b:87},
   todos:{h:213,s:72,b:86}, cal:{h:93,s:66,b:60}, weekly:{h:213,s:72,b:86},
   progress:{h:158,s:81,b:62}, other:{h:244,s:45,b:87}, nav:{h:244,s:45,b:87},
+  water:{h:210,s:80,b:75},
 };
 const BLOCK_NAMES = {
   mood:"Mood", habits:"Habits", notes:"Notes", todos:"To-do",
-  cal:"Calories", weekly:"Weekly", progress:"Progress", other:"Other", nav:"Tab bar"
+  cal:"Calories", weekly:"Weekly", progress:"Progress", other:"Other", nav:"Tab bar", water:"Water tracker"
 };
 const BLOCK_STYLES = ["default","filled-white","filled-black"];
 const BLOCK_STYLE_LABELS = ["Default","White text","Black text"];
@@ -154,44 +155,39 @@ function HeartIcon({filled,color,size=18}){
 }
 
 function WaterBottle({ml,goalMl,color}){
-  const pct=Math.min(ml/goalMl,1.2);
-  const W=60,H=160;
-  // Bottle shape: neck at top, body below
-  const neckX1=20,neckX2=40,neckTop=8,neckBot=30;
-  const bodyX1=8,bodyX2=52,bodyTop=30,bodyBot=148,bodyR=8;
-  // Fill level inside body
+  const pct=Math.min(ml/(goalMl||1),1.2);
+  const W=100,H=90;
+  // Squat bottle: wide body, short neck
+  const neckX1=36,neckX2=64,neckTop=4,neckBot=18;
+  const bodyX1=6,bodyX2=94,bodyTop=18,bodyBot=84,bodyR=10;
   const fillable=bodyBot-bodyTop;
   const fillH=Math.min(pct*fillable,fillable);
   const fillY=bodyBot-fillH;
   const overflowing=ml>goalMl;
-  const fillColor=overflowing?"#378ADD":color;
-  // Goal line position
-  const goalFillH=Math.min(goalMl/goalMl*fillable,fillable);
-  const goalY=bodyBot-goalFillH;
-  // Percentage label
-  const displayPct=Math.round(ml/goalMl*100);
-  const labelInside=fillH>22;
-  const labelY=labelInside?fillY+14:fillY-5;
+  const fillColor=overflowing?"#2196F3":color;
+  const goalY=bodyTop; // goal is always 100% = top of body
+  const displayPct=Math.round((ml/(goalMl||1))*100);
+  const labelInside=fillH>18;
+  const labelY=labelInside?fillY+13:fillY-5;
+  const bottlePath=`M${neckX1},${neckTop} L${neckX2},${neckTop} L${neckX2},${neckBot} Q${bodyX2},${neckBot} ${bodyX2},${bodyTop+bodyR} L${bodyX2},${bodyBot-bodyR} Q${bodyX2},${bodyBot} ${bodyX2-bodyR},${bodyBot} L${bodyX1+bodyR},${bodyBot} Q${bodyX1},${bodyBot} ${bodyX1},${bodyBot-bodyR} L${bodyX1},${bodyTop+bodyR} Q${bodyX1},${neckBot} ${neckX1},${neckBot} Z`;
   return(
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{display:"block",margin:"0 auto",overflow:"visible"}}>
-      {/* Bottle cap */}
-      <rect x={22} y={2} width={16} height={8} rx={3} fill={color} opacity={0.5}/>
-      {/* Bottle outline clip */}
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block",overflow:"visible"}}>
       <defs>
         <clipPath id="bottleClip">
-          <path d={`M${neckX1},${neckTop} L${neckX2},${neckTop} L${neckX2},${neckBot} Q${bodyX2},${neckBot} ${bodyX2},${bodyTop+8} L${bodyX2},${bodyBot-bodyR} Q${bodyX2},${bodyBot} ${bodyX2-bodyR},${bodyBot} L${bodyX1+bodyR},${bodyBot} Q${bodyX1},${bodyBot} ${bodyX1},${bodyBot-bodyR} L${bodyX1},${bodyTop+8} Q${bodyX1},${neckBot} ${neckX1},${neckBot} Z`}/>
+          <path d={bottlePath}/>
         </clipPath>
       </defs>
-      {/* Bottle background */}
-      <path d={`M${neckX1},${neckTop} L${neckX2},${neckTop} L${neckX2},${neckBot} Q${bodyX2},${neckBot} ${bodyX2},${bodyTop+8} L${bodyX2},${bodyBot-bodyR} Q${bodyX2},${bodyBot} ${bodyX2-bodyR},${bodyBot} L${bodyX1+bodyR},${bodyBot} Q${bodyX1},${bodyBot} ${bodyX1},${bodyBot-bodyR} L${bodyX1},${bodyTop+8} Q${bodyX1},${neckBot} ${neckX1},${neckBot} Z`}
-        fill={color} opacity={0.1} stroke={color} strokeWidth={2}/>
+      {/* Cap */}
+      <rect x={neckX1+4} y={1} width={neckX2-neckX1-8} height={6} rx={2} fill={color} opacity={0.5}/>
+      {/* Bottle bg */}
+      <path d={bottlePath} fill={color} opacity={0.1} stroke={color} strokeWidth={2}/>
       {/* Water fill */}
-      <rect x={bodyX1} y={fillY} width={bodyX2-bodyX1} height={fillH} fill={fillColor} opacity={0.75} clipPath="url(#bottleClip)"/>
+      <rect x={bodyX1} y={fillY} width={bodyX2-bodyX1} height={fillH} fill={fillColor} opacity={0.8} clipPath="url(#bottleClip)"/>
       {/* Goal dashed line */}
-      <line x1={bodyX1+2} y1={goalY} x2={bodyX2-2} y2={goalY} stroke={color} strokeWidth={1.5} strokeDasharray="4,3" opacity={0.6}/>
-      {/* Percentage label */}
+      <line x1={bodyX1+3} y1={goalY+bodyR} x2={bodyX2-3} y2={goalY+bodyR} stroke={color} strokeWidth={1.5} strokeDasharray="5,3" opacity={0.5}/>
+      {/* Percentage */}
       {ml>0&&(
-        <text x={W/2} y={labelY} textAnchor="middle" fontSize="11" fontWeight="700"
+        <text x={W/2} y={labelY} textAnchor="middle" fontSize="12" fontWeight="700"
           fill={labelInside?"#fff":color} style={{userSelect:"none"}}>
           {displayPct}%
         </text>
@@ -977,34 +973,32 @@ function Journal({user,onSignOut}){
             </div>
             {theme.waterTracker!==false&&(()=>{
               const dayWater=waterLog[calDay]||0;
-              const{bg,border,text}=blockStyles(C("cal"),S("cal"));
+              const wColor=C("water");
+              const{bg,border}=blockStyles(wColor,S("water"));
               return(
-                <div style={{width:76,display:"flex",flexDirection:"column",border:`2px solid ${border}`,borderRadius:8,background:bg,overflow:"hidden"}}>
-                  <div style={{padding:"5px 4px",borderBottom:`1.5px solid ${border}`,textAlign:"center"}}>
-                    <div style={{fontSize:8,fontWeight:700,color:text,opacity:0.7,marginBottom:2}}>GOAL</div>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:2}}>
-                      <input type="number" value={waterGoal} onChange={e=>{const v=Number(e.target.value)||2000;setWaterGoal(v);saveAndSync(K.waterGoal,"watergoal",v);}}
-                        style={{width:38,fontSize:10,fontWeight:700,textAlign:"center",border:`1px solid ${border}`,borderRadius:4,padding:"1px 2px",background:"#fff",color:"#111"}}/>
-                      <span style={{fontSize:8,color:text,opacity:0.7}}>ml</span>
-                    </div>
+                <div style={{width:110,display:"flex",flexDirection:"column",border:`2px solid ${border}`,borderRadius:8,background:bg,overflow:"hidden",padding:"8px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <span style={{fontSize:9,fontWeight:700,color:darken(wColor),opacity:0.8}}>WATER</span>
+                    <span style={{fontSize:9,color:darken(wColor),opacity:0.6}}>{dayWater>=1000?(dayWater/1000).toFixed(1)+"L":dayWater+"ml"}/{waterGoal>=1000?(waterGoal/1000).toFixed(1)+"L":waterGoal+"ml"}</span>
                   </div>
-                  <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:"6px 0"}}>
-                    <WaterBottle ml={dayWater} goalMl={waterGoal} color={C("cal")}/>
+                  <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:"4px 0"}}>
+                    <WaterBottle ml={dayWater} goalMl={waterGoal} color={wColor}/>
                   </div>
-                  <div style={{padding:"5px 4px",borderTop:`1.5px solid ${border}`}}>
-                    <div style={{fontSize:8,fontWeight:700,color:text,opacity:0.7,textAlign:"center",marginBottom:3}}>
-                      {dayWater>=1000?(dayWater/1000).toFixed(1)+"L":dayWater+"ml"} / {waterGoal>=1000?(waterGoal/1000).toFixed(1)+"L":waterGoal+"ml"}
-                    </div>
-                    <input placeholder="ml or L" value={waterInput} onChange={e=>setWaterInput(e.target.value)}
+                  <div style={{display:"flex",gap:4,alignItems:"center",marginTop:4}}>
+                    <input placeholder="ml / L" value={waterInput} onChange={e=>setWaterInput(e.target.value)}
                       onKeyDown={e=>{if(e.key==="Enter"){const ml=parseWaterInput(waterInput);if(ml&&ml>0){logWater(calDay,ml);setWaterInput("");}}}}
-                      style={{width:"100%",fontSize:10,textAlign:"center",border:`1px solid ${border}`,borderRadius:4,padding:"3px 2px",background:"#fff",color:"#111",boxSizing:"border-box",marginBottom:3}}/>
-                    <div style={{display:"flex",gap:3}}>
-                      <button onClick={()=>{const ml=parseWaterInput(waterInput);if(ml&&ml>0){logWater(calDay,ml);setWaterInput("");}}}
-                        style={{flex:1,fontSize:9,fontWeight:700,padding:"3px 0",borderRadius:4,border:`1px solid ${border}`,background:darken(C("cal")),color:"#fff",cursor:"pointer"}}>+</button>
-                      {dayWater>0&&<button onClick={()=>resetWater(calDay)}
-                        style={{fontSize:9,fontWeight:700,padding:"3px 4px",borderRadius:4,border:"1px solid #E24B4A",background:"#FAECE7",color:"#993C1D",cursor:"pointer"}}>↺</button>}
-                    </div>
+                      style={{flex:1,minWidth:0,fontSize:10,textAlign:"center",border:`1.5px solid ${border}`,borderRadius:5,padding:"4px 3px",background:"#fff",color:"#111",boxSizing:"border-box"}}/>
+                    <button onClick={()=>{const ml=parseWaterInput(waterInput);if(ml&&ml>0){logWater(calDay,ml);setWaterInput("");}}}
+                      style={{fontSize:10,fontWeight:700,padding:"4px 7px",borderRadius:5,border:`1.5px solid ${border}`,background:darken(wColor),color:"#fff",cursor:"pointer",flexShrink:0}}>+</button>
                   </div>
+                  <div style={{display:"flex",gap:4,alignItems:"center",marginTop:4}}>
+                    <span style={{fontSize:8,color:darken(wColor),opacity:0.7,flexShrink:0}}>Goal:</span>
+                    <input type="number" value={waterGoal} onChange={e=>{const v=Number(e.target.value)||2000;setWaterGoal(v);saveAndSync(K.waterGoal,"watergoal",v);}}
+                      style={{flex:1,minWidth:0,fontSize:10,textAlign:"center",border:`1.5px solid ${border}`,borderRadius:5,padding:"3px",background:"#fff",color:"#111",boxSizing:"border-box"}}/>
+                    <span style={{fontSize:8,color:darken(wColor),opacity:0.7,flexShrink:0}}>ml</span>
+                  </div>
+                  {dayWater>0&&<button onClick={()=>resetWater(calDay)}
+                    style={{marginTop:4,fontSize:9,fontWeight:700,padding:"3px",borderRadius:5,border:"1.5px solid #E24B4A",background:"#FAECE7",color:"#993C1D",cursor:"pointer",width:"100%"}}>Reset ↺</button>}
                 </div>
               );
             })()}
