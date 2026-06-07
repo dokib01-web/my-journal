@@ -515,6 +515,8 @@ function Journal({user,onSignOut}){
   const [mTitle,setMTitle]       = useState("");
   const [mDesc,setMDesc]         = useState("");
   const [mDate,setMDate]         = useState("");
+  const [mCat,setMCat]           = useState("Uncategorized");
+  const [mFilter,setMFilter]     = useState("All");
   const [mealInput,setMealInput] = useState("");
   const [mealLoading,setMealLoading] = useState(false);
   const [mealError,setMealError] = useState("");
@@ -621,7 +623,7 @@ function Journal({user,onSignOut}){
   function delQuote(id){const q=quotes.filter(x=>x.id!==id);setQuotes(q);saveAndSync(K.quotes,"quotes",q);}
   function addLyric(){if(!lText.trim()||!lSong.trim())return;const l=[...lyrics,{id:Date.now(),text:lText.trim(),song:lSong.trim(),artist:lArtist.trim(),img:lImg,cat:lCat}];setLyrics(l);saveAndSync(K.lyrics,"lyrics",l);setLText("");setLSong("");setLArtist("");setLImg("");setLCat("Uncategorized");}
   function delLyric(id){const l=lyrics.filter(x=>x.id!==id);setLyrics(l);saveAndSync(K.lyrics,"lyrics",l);}
-  function addMemory(){if(!mTitle.trim()||!mDesc.trim())return;const m=[...memories,{id:Date.now(),title:mTitle.trim(),desc:mDesc.trim(),date:mDate||today}];setMemories(m);saveAndSync(K.memories,"memories",m);setMTitle("");setMDesc("");setMDate("");}
+  function addMemory(){if(!mTitle.trim()||!mDesc.trim())return;const m=[...memories,{id:Date.now(),title:mTitle.trim(),desc:mDesc.trim(),date:mDate||today,cat:mCat}];setMemories(m);saveAndSync(K.memories,"memories",m);setMTitle("");setMDesc("");setMDate("");setMCat("Uncategorized");}
   function delMemory(id){const m=memories.filter(x=>x.id!==id);setMemories(m);saveAndSync(K.memories,"memories",m);}
   function delMeal(id){const m={...meals,[calDay]:calDayMeals.filter(x=>x.id!==id)};setMeals(m);saveAndSync(K.meals,"meals",m);}
   function saveEditQuote(){if(!editingQuote||!editingQuote.text.trim())return;const q=quotes.map(x=>x.id===editingQuote.id?{...x,...editingQuote}:x);setQuotes(q);saveAndSync(K.quotes,"quotes",q);setEditingQuote(null);}
@@ -1349,38 +1351,53 @@ function Journal({user,onSignOut}){
                   style={{width:"100%",minHeight:80,resize:"vertical",borderRadius:6,border:`1.5px solid ${C("other")}`,padding:"7px",fontSize:13,color:"#111",background:"#fff",boxSizing:"border-box",fontFamily:"system-ui,sans-serif",marginBottom:6}}/>
                 <div style={{display:"flex",gap:6}}>
                   <input type="date" value={mDate} onChange={e=>setMDate(e.target.value)} style={{...inpBase(C("other"),"#fff"),flex:1}}/>
+                  <select value={mCat} onChange={e=>setMCat(e.target.value)} style={selStyle(C("other"),"#fff",darken(C("other")))}>
+                    {CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+                  </select>
                   <button onClick={addMemory} style={{padding:"5px 10px",borderRadius:6,border:`2px solid ${C("other")}`,background:darken(C("other")),color:"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>Save</button>
                 </div>
               </div>
+              <div style={{display:"flex",gap:6,marginBottom:8,alignItems:"center"}}>
+                <span style={{fontSize:10,fontWeight:700,color:"#888"}}>FILTER:</span>
+                <select value={mFilter} onChange={e=>setMFilter(e.target.value)} style={{...selStyle(C("other"),lighten(C("other")),darken(C("other"))),flex:1,padding:"4px 8px"}}>
+                  <option value="All">All ({memories.length})</option>
+                  {CATEGORIES.map(c=>{const n=memories.filter(m=>(m.cat||"Uncategorized")===c).length;return n>0?<option key={c} value={c}>{c} ({n})</option>:null;})}
+                </select>
+              </div>
               {memories.length===0&&<p style={{fontSize:13,color:"#999",textAlign:"center",margin:"16px 0"}}>No memories saved yet.</p>}
-              {[...memories].sort((a,b)=>b.date.localeCompare(a.date)).map(m=>{
+              {[...memories].sort((a,b)=>b.date.localeCompare(a.date)).filter(m=>mFilter==="All"||(m.cat||"Uncategorized")===mFilter).map(m=>{
+                const cc=CAT_COLORS[m.cat||"Uncategorized"];
                 const isEditing=editingMemory?.id===m.id;
                 return(
-                  <div key={m.id} style={{border:"2px solid #BA7517",borderRadius:8,padding:"10px 12px",marginBottom:8,background:"#FAEEDA",color:"#412402"}}>
+                  <div key={m.id} style={{border:`2px solid ${cc.c}`,borderRadius:8,padding:"10px 12px",marginBottom:8,background:cc.cL,color:cc.cD}}>
                     {isEditing?(
                       <div>
                         <input value={editingMemory.title} onChange={e=>setEditingMemory(v=>({...v,title:e.target.value}))} placeholder="Title"
-                          style={{...inpBase("#BA7517","#fff"),display:"block",width:"100%",boxSizing:"border-box",marginBottom:6}}/>
+                          style={{...inpBase(cc.c,"#fff"),display:"block",width:"100%",boxSizing:"border-box",marginBottom:6}}/>
                         <textarea value={editingMemory.desc} onChange={e=>setEditingMemory(v=>({...v,desc:e.target.value}))} placeholder="Describe the memory..."
-                          style={{width:"100%",minHeight:80,resize:"vertical",borderRadius:6,border:"1.5px solid #BA7517",padding:"7px",fontSize:13,color:"#111",background:"#fff",boxSizing:"border-box",fontFamily:"system-ui,sans-serif",marginBottom:6}}/>
+                          style={{width:"100%",minHeight:80,resize:"vertical",borderRadius:6,border:`1.5px solid ${cc.c}`,padding:"7px",fontSize:13,color:"#111",background:"#fff",boxSizing:"border-box",fontFamily:"system-ui,sans-serif",marginBottom:6}}/>
                         <div style={{display:"flex",gap:6,marginBottom:6}}>
                           <input type="date" value={editingMemory.date} onChange={e=>setEditingMemory(v=>({...v,date:e.target.value}))}
-                            style={{...inpBase("#BA7517","#fff"),flex:1}}/>
+                            style={{...inpBase(cc.c,"#fff"),flex:1}}/>
+                          <select value={editingMemory.cat||"Uncategorized"} onChange={e=>setEditingMemory(v=>({...v,cat:e.target.value}))} style={selStyle(cc.c,"#fff",darken(cc.c))}>
+                            {CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+                          </select>
                         </div>
                         <div style={{display:"flex",gap:6}}>
-                          <button onClick={saveEditMemory} style={{...smBtn("#BA7517","#412402","#fff"),flex:1}}>Save</button>
+                          <button onClick={saveEditMemory} style={{...smBtn(cc.c,cc.cD,"#fff"),flex:1}}>Save</button>
                           <button onClick={()=>setEditingMemory(null)} style={{...smBtn("#ccc","#f5f5f5","#555"),flex:1}}>Cancel</button>
                         </div>
                       </div>
                     ):(
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
                         <div style={{flex:1}}>
+                          <span style={{fontSize:9,fontWeight:700,opacity:0.6,display:"block",marginBottom:3}}>{m.cat||"Uncategorized"}</span>
                           <p style={{fontSize:10,fontWeight:700,opacity:0.6,margin:"0 0 3px"}}>{new Date(m.date+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</p>
                           <p style={{fontSize:14,fontWeight:700,margin:"0 0 5px"}}>{m.title}</p>
                           <p style={{fontSize:13,margin:0,lineHeight:1.6}}>{m.desc}</p>
                         </div>
                         <div style={{display:"flex",flexDirection:"column",gap:6,flexShrink:0}}>
-                          <span onClick={()=>setEditingMemory({id:m.id,title:m.title,desc:m.desc,date:m.date})} style={{cursor:"pointer",color:"#412402",fontWeight:700,fontSize:14,lineHeight:1,opacity:0.6}}>✏️</span>
+                          <span onClick={()=>setEditingMemory({id:m.id,title:m.title,desc:m.desc,date:m.date,cat:m.cat||"Uncategorized"})} style={{cursor:"pointer",color:cc.cD,fontWeight:700,fontSize:14,lineHeight:1,opacity:0.6}}>✏️</span>
                           <span onClick={()=>setConfirmDelete({type:"memory",id:m.id})} style={{cursor:"pointer",color:"#D85A30",fontWeight:700,fontSize:16,lineHeight:1}}>×</span>
                         </div>
                       </div>
