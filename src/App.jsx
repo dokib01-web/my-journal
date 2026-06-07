@@ -153,6 +153,53 @@ function HeartIcon({filled,color,size=18}){
   );
 }
 
+function WaterBottle({ml,goalMl,color}){
+  const pct=Math.min(ml/goalMl,1.2);
+  const W=60,H=160;
+  // Bottle shape: neck at top, body below
+  const neckX1=20,neckX2=40,neckTop=8,neckBot=30;
+  const bodyX1=8,bodyX2=52,bodyTop=30,bodyBot=148,bodyR=8;
+  // Fill level inside body
+  const fillable=bodyBot-bodyTop;
+  const fillH=Math.min(pct*fillable,fillable);
+  const fillY=bodyBot-fillH;
+  const overflowing=ml>goalMl;
+  const fillColor=overflowing?"#378ADD":color;
+  // Goal line position
+  const goalFillH=Math.min(goalMl/goalMl*fillable,fillable);
+  const goalY=bodyBot-goalFillH;
+  // Percentage label
+  const displayPct=Math.round(ml/goalMl*100);
+  const labelInside=fillH>22;
+  const labelY=labelInside?fillY+14:fillY-5;
+  return(
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{display:"block",margin:"0 auto",overflow:"visible"}}>
+      {/* Bottle cap */}
+      <rect x={22} y={2} width={16} height={8} rx={3} fill={color} opacity={0.5}/>
+      {/* Bottle outline clip */}
+      <defs>
+        <clipPath id="bottleClip">
+          <path d={`M${neckX1},${neckTop} L${neckX2},${neckTop} L${neckX2},${neckBot} Q${bodyX2},${neckBot} ${bodyX2},${bodyTop+8} L${bodyX2},${bodyBot-bodyR} Q${bodyX2},${bodyBot} ${bodyX2-bodyR},${bodyBot} L${bodyX1+bodyR},${bodyBot} Q${bodyX1},${bodyBot} ${bodyX1},${bodyBot-bodyR} L${bodyX1},${bodyTop+8} Q${bodyX1},${neckBot} ${neckX1},${neckBot} Z`}/>
+        </clipPath>
+      </defs>
+      {/* Bottle background */}
+      <path d={`M${neckX1},${neckTop} L${neckX2},${neckTop} L${neckX2},${neckBot} Q${bodyX2},${neckBot} ${bodyX2},${bodyTop+8} L${bodyX2},${bodyBot-bodyR} Q${bodyX2},${bodyBot} ${bodyX2-bodyR},${bodyBot} L${bodyX1+bodyR},${bodyBot} Q${bodyX1},${bodyBot} ${bodyX1},${bodyBot-bodyR} L${bodyX1},${bodyTop+8} Q${bodyX1},${neckBot} ${neckX1},${neckBot} Z`}
+        fill={color} opacity={0.1} stroke={color} strokeWidth={2}/>
+      {/* Water fill */}
+      <rect x={bodyX1} y={fillY} width={bodyX2-bodyX1} height={fillH} fill={fillColor} opacity={0.75} clipPath="url(#bottleClip)"/>
+      {/* Goal dashed line */}
+      <line x1={bodyX1+2} y1={goalY} x2={bodyX2-2} y2={goalY} stroke={color} strokeWidth={1.5} strokeDasharray="4,3" opacity={0.6}/>
+      {/* Percentage label */}
+      {ml>0&&(
+        <text x={W/2} y={labelY} textAnchor="middle" fontSize="11" fontWeight="700"
+          fill={labelInside?"#fff":color} style={{userSelect:"none"}}>
+          {displayPct}%
+        </text>
+      )}
+    </svg>
+  );
+}
+
 function CalorieGoalScreen({calTarget,savedGoalWeight,onSave,onGoalWeightChange,onBack}){
   const [mode,setMode]=useState("simple");
   const [simpleVal,setSimpleVal]=useState(String(calTarget));
@@ -401,6 +448,17 @@ function SettingsScreen({theme,setTheme,onBack,onSignOut,saveTheme}){
         })}
       </div>
 
+      <div style={{fontSize:10,fontWeight:700,color:"#888",letterSpacing:".06em",textTransform:"uppercase",marginBottom:8}}>Features</div>
+      <div style={{background:"#fff",borderRadius:10,padding:"4px 12px",marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0"}}>
+          <span style={{fontSize:13,color:"#333",flex:1}}>Water tracker</span>
+          <div onClick={()=>{const t={...theme,waterTracker:!theme.waterTracker};setTheme(t);saveTheme(t);}}
+            style={{width:42,height:24,borderRadius:12,background:theme.waterTracker!==false?"#1D9E75":"#ccc",cursor:"pointer",position:"relative",transition:"background .2s",flexShrink:0}}>
+            <div style={{position:"absolute",top:3,left:theme.waterTracker!==false?20:3,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left .2s"}}/>
+          </div>
+        </div>
+      </div>
+
       <div style={{background:"#fff",borderRadius:10,padding:"12px",marginBottom:12}}>
         <button onClick={onSignOut} style={{...smBtn("#E24B4A","#FAECE7","#993C1D"),width:"100%",padding:"10px",fontSize:14}}>Sign out</button>
       </div>
@@ -466,6 +524,7 @@ function Journal({user,onSignOut}){
     quotes:ldk(uid,"quotes"),lyrics:ldk(uid,"lyrics"),memories:ldk(uid,"memories"),
     meals:ldk(uid,"meals"),calTarget:ldk(uid,"caltarget"),theme:ldk(uid,"theme"),favmeals:ldk(uid,"favmeals"),
     weightLog:ldk(uid,"weightlog"),goalWeight:ldk(uid,"goalweight"),
+    waterLog:ldk(uid,"waterlog"),waterGoal:ldk(uid,"watergoal"),
   };
   const [data,setData]           = useState(()=>ld(K.data,{}));
   const [habits,setHabits]       = useState(()=>ld(K.habits,DEFAULT_HABITS));
@@ -478,6 +537,9 @@ function Journal({user,onSignOut}){
   const [calTarget,setCalTarget] = useState(()=>ld(K.calTarget,2200));
   const [weightLog,setWeightLog] = useState(()=>ld(K.weightLog,{}));
   const [goalWeight,setGoalWeight] = useState(()=>ld(K.goalWeight,null));
+  const [waterLog,setWaterLog]   = useState(()=>ld(K.waterLog,{}));
+  const [waterGoal,setWaterGoal] = useState(()=>ld(K.waterGoal,2000));
+  const [waterInput,setWaterInput] = useState("");
   const [theme,setTheme]         = useState(()=>ld(K.theme,DEFAULT_THEME));
   const [progressTab,setProgressTab] = useState("overview");
   const [weightDay,setWeightDay] = useState(todayKey());
@@ -552,6 +614,8 @@ function Journal({user,onSignOut}){
           if(m.favmeals){sv(K.favmeals,m.favmeals);setFavMeals(m.favmeals);}
           if(m.weightlog){sv(K.weightLog,m.weightlog);setWeightLog(m.weightlog);}
           if(m.goalweight!=null){sv(K.goalWeight,m.goalweight);setGoalWeight(m.goalweight);}
+          if(m.waterlog){sv(K.waterLog,m.waterlog);setWaterLog(m.waterlog);}
+          if(m.watergoal!=null){sv(K.waterGoal,m.watergoal);setWaterGoal(m.watergoal);}
           if(m.caltarget!=null){sv(K.calTarget,m.caltarget);setCalTarget(m.caltarget);}
           if(m.theme){sv(K.theme,m.theme);setTheme({...DEFAULT_THEME,...m.theme});}
         }
@@ -684,6 +748,17 @@ function Journal({user,onSignOut}){
   function logWeight(day,val){const w={...weightLog,[day]:Number(val)};setWeightLog(w);saveAndSync(K.weightLog,"weightlog",w);}
   function saveGoalWeight(val){setGoalWeight(val);saveAndSync(K.goalWeight,"goalweight",val);}
   function shiftWeightDay(n){const d=new Date(weightDay+"T12:00:00");d.setDate(d.getDate()+n);const t=new Date();t.setHours(23,59,59);if(d<=t)setWeightDay(fmt(d));}
+  function logWater(day,ml){const w={...waterLog,[day]:(waterLog[day]||0)+ml};setWaterLog(w);saveAndSync(K.waterLog,"waterlog",w);}
+  function resetWater(day){const w={...waterLog,[day]:0};setWaterLog(w);saveAndSync(K.waterLog,"waterlog",w);}
+  function parseWaterInput(str){
+    const mLMatch=str.match(/^(\d+(?:\.\d+)?)\s*(?:ml|mL|milliliter|millilitre)s?$/i);
+    const lMatch=str.match(/^(\d+(?:\.\d+)?)\s*(?:l|L|liter|litre)s?$/i);
+    const plainMatch=str.match(/^(\d+(?:\.\d+)?)$/);
+    if(mLMatch)return Math.round(parseFloat(mLMatch[1]));
+    if(lMatch)return Math.round(parseFloat(lMatch[1])*1000);
+    if(plainMatch)return Math.round(parseFloat(plainMatch[1]));
+    return null;
+  }
   function buildCopy(){
     const lines=[`Journal entry — ${activeDateLabel}`,``];
     lines.push(entry.mood!=null?`Mood: ${MOODS[entry.mood]} ${MOOD_LABELS[entry.mood]} (${entry.mood+1}/5)`:"Mood: not logged");
@@ -873,29 +948,66 @@ function Journal({user,onSignOut}){
             <span style={{fontSize:12,fontWeight:700}}>{isCalToday?"Today":new Date(calDay+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}</span>
             <button onClick={()=>shiftCalDay(1)} style={{...navBtnStyle(),opacity:calDay>=today?0.3:1,pointerEvents:calDay>=today?"none":"auto"}}>Forward →</button>
           </div>
-          <div style={card("cal")}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <span style={{fontSize:10,fontWeight:700}}>{isCalToday?"TODAY'S CALORIES":"CALORIES — "+new Date(calDay+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}).toUpperCase()}</span>
-              <span onClick={()=>setShowCalGoal(true)} style={{fontSize:10,fontWeight:700,cursor:"pointer",opacity:0.7}}>Target: {calTarget} kcal ✏️</span>
+          <div style={{display:"flex",gap:8,alignItems:"stretch",marginBottom:8}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{...card("cal"),marginBottom:0}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <span style={{fontSize:10,fontWeight:700}}>{isCalToday?"TODAY'S CALORIES":"CALORIES — "+new Date(calDay+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}).toUpperCase()}</span>
+                  <span onClick={()=>setShowCalGoal(true)} style={{fontSize:10,fontWeight:700,cursor:"pointer",opacity:0.7}}>Target: {calTarget} ✏️</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+                  <span style={{fontSize:26,fontWeight:700}}>{totalCal}</span>
+                  <span style={{fontSize:11,opacity:0.7}}>/ {calTarget} kcal · {calPct}%</span>
+                </div>
+                <div style={{height:10,borderRadius:5,background:"rgba(0,0,0,0.1)",marginBottom:10,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${calPct}%`,background:calPct>100?"#D85A30":calPct>85?"#BA7517":C("cal"),borderRadius:5,transition:"width .3s"}}/>
+                </div>
+                <div style={{display:"flex",gap:6}}>
+                  {[{l:"Protein",v:totalP,c:"#378ADD"},{l:"Carbs",v:totalC,c:"#BA7517"},{l:"Fat",v:totalF,c:"#D85A30"}].map(({l,v,c})=>(
+                    <div key={l} style={{flex:1,textAlign:"center"}}>
+                      <div style={{fontSize:13,fontWeight:700}}>{v}g</div>
+                      <div style={{fontSize:10,opacity:0.7}}>{l}</div>
+                      <div style={{height:5,borderRadius:3,background:"rgba(0,0,0,0.1)",marginTop:3,overflow:"hidden"}}>
+                        <div style={{height:"100%",width:`${totalP+totalC+totalF>0?Math.round(v/(totalP+totalC+totalF)*100):0}%`,background:c,borderRadius:3}}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
-              <span style={{fontSize:28,fontWeight:700}}>{totalCal}</span>
-              <span style={{fontSize:13,opacity:0.7}}>/ {calTarget} kcal · {calPct}%</span>
-            </div>
-            <div style={{height:10,borderRadius:5,background:"rgba(0,0,0,0.1)",marginBottom:10,overflow:"hidden"}}>
-              <div style={{height:"100%",width:`${calPct}%`,background:calPct>100?"#D85A30":calPct>85?"#BA7517":C("cal"),borderRadius:5,transition:"width .3s"}}/>
-            </div>
-            <div style={{display:"flex",gap:8}}>
-              {[{l:"Protein",v:totalP,c:"#378ADD"},{l:"Carbs",v:totalC,c:"#BA7517"},{l:"Fat",v:totalF,c:"#D85A30"}].map(({l,v,c})=>(
-                <div key={l} style={{flex:1,textAlign:"center"}}>
-                  <div style={{fontSize:14,fontWeight:700}}>{v}g</div>
-                  <div style={{fontSize:10,opacity:0.7}}>{l}</div>
-                  <div style={{height:5,borderRadius:3,background:"rgba(0,0,0,0.1)",marginTop:3,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:`${totalP+totalC+totalF>0?Math.round(v/(totalP+totalC+totalF)*100):0}%`,background:c,borderRadius:3}}/>
+            {theme.waterTracker!==false&&(()=>{
+              const dayWater=waterLog[calDay]||0;
+              const{bg,border,text}=blockStyles(C("cal"),S("cal"));
+              return(
+                <div style={{width:76,display:"flex",flexDirection:"column",border:`2px solid ${border}`,borderRadius:8,background:bg,overflow:"hidden"}}>
+                  <div style={{padding:"5px 4px",borderBottom:`1.5px solid ${border}`,textAlign:"center"}}>
+                    <div style={{fontSize:8,fontWeight:700,color:text,opacity:0.7,marginBottom:2}}>GOAL</div>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:2}}>
+                      <input type="number" value={waterGoal} onChange={e=>{const v=Number(e.target.value)||2000;setWaterGoal(v);saveAndSync(K.waterGoal,"watergoal",v);}}
+                        style={{width:38,fontSize:10,fontWeight:700,textAlign:"center",border:`1px solid ${border}`,borderRadius:4,padding:"1px 2px",background:"#fff",color:"#111"}}/>
+                      <span style={{fontSize:8,color:text,opacity:0.7}}>ml</span>
+                    </div>
+                  </div>
+                  <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:"6px 0"}}>
+                    <WaterBottle ml={dayWater} goalMl={waterGoal} color={C("cal")}/>
+                  </div>
+                  <div style={{padding:"5px 4px",borderTop:`1.5px solid ${border}`}}>
+                    <div style={{fontSize:8,fontWeight:700,color:text,opacity:0.7,textAlign:"center",marginBottom:3}}>
+                      {dayWater>=1000?(dayWater/1000).toFixed(1)+"L":dayWater+"ml"} / {waterGoal>=1000?(waterGoal/1000).toFixed(1)+"L":waterGoal+"ml"}
+                    </div>
+                    <input placeholder="ml or L" value={waterInput} onChange={e=>setWaterInput(e.target.value)}
+                      onKeyDown={e=>{if(e.key==="Enter"){const ml=parseWaterInput(waterInput);if(ml&&ml>0){logWater(calDay,ml);setWaterInput("");}}}}
+                      style={{width:"100%",fontSize:10,textAlign:"center",border:`1px solid ${border}`,borderRadius:4,padding:"3px 2px",background:"#fff",color:"#111",boxSizing:"border-box",marginBottom:3}}/>
+                    <div style={{display:"flex",gap:3}}>
+                      <button onClick={()=>{const ml=parseWaterInput(waterInput);if(ml&&ml>0){logWater(calDay,ml);setWaterInput("");}}}
+                        style={{flex:1,fontSize:9,fontWeight:700,padding:"3px 0",borderRadius:4,border:`1px solid ${border}`,background:darken(C("cal")),color:"#fff",cursor:"pointer"}}>+</button>
+                      {dayWater>0&&<button onClick={()=>resetWater(calDay)}
+                        style={{fontSize:9,fontWeight:700,padding:"3px 4px",borderRadius:4,border:"1px solid #E24B4A",background:"#FAECE7",color:"#993C1D",cursor:"pointer"}}>↺</button>}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </div>
           <div style={card("cal")}>
             <span style={{fontSize:10,fontWeight:700,display:"block",marginBottom:6}}>LOG A MEAL</span>
