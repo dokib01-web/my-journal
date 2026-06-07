@@ -940,7 +940,7 @@ function Journal({user,onSignOut}){
           </div>
           <div style={{display:"flex",gap:8,alignItems:"stretch",marginBottom:8}}>
             <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column"}}>
-              <div style={{...card("cal"),marginBottom:0,flex:1,display:"flex",flexDirection:"column"}}>
+              <div style={{...card("cal"),marginBottom:0,flex:1,display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                   <span style={{fontSize:10,fontWeight:700}}>{isCalToday?"TODAY'S CALORIES":"CALORIES — "+new Date(calDay+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}).toUpperCase()}</span>
                   <span onClick={()=>setShowCalGoal(true)} style={{fontSize:10,fontWeight:700,cursor:"pointer",opacity:0.7}}>Target: {calTarget} ✏️</span>
