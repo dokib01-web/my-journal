@@ -970,30 +970,32 @@ function Journal({user,onSignOut}){
               const wColor=C("water");
               const{bg,border}=blockStyles(wColor,S("water"));
               return(
-                <div style={{width:76,display:"flex",flexDirection:"column",border:`2px solid ${border}`,borderRadius:8,background:bg,padding:"8px 6px",boxSizing:"border-box"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                    <span style={{fontSize:8,fontWeight:700,color:darken(wColor),opacity:0.8}}>WATER</span>
-                    <span style={{fontSize:8,color:darken(wColor),opacity:0.6,textAlign:"right"}}>{dayWater>=1000?(dayWater/1000).toFixed(1)+"L":dayWater+"ml"}</span>
+                <div style={{width:76,display:"flex",flexDirection:"column",border:`2px solid ${border}`,borderRadius:8,background:bg,padding:"6px",boxSizing:"border-box"}}>
+                  {/* Goal at top */}
+                  <div style={{textAlign:"center",marginBottom:4}}>
+                    <div style={{fontSize:8,fontWeight:700,color:darken(wColor),opacity:0.7,marginBottom:2}}>GOAL</div>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:2}}>
+                      <input type="number" value={waterGoal} onChange={e=>{const v=Number(e.target.value)||2000;setWaterGoal(v);saveAndSync(K.waterGoal,"watergoal",v);}}
+                        style={{width:42,fontSize:10,fontWeight:700,textAlign:"center",border:`1.5px solid ${border}`,borderRadius:5,padding:"2px 3px",background:"#fff",color:"#111"}}/>
+                      <span style={{fontSize:8,color:darken(wColor),opacity:0.7}}>ml</span>
+                    </div>
                   </div>
+                  {/* Bottle in middle */}
                   <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",minHeight:0}}>
                     <WaterBottle ml={dayWater} goalMl={waterGoal} color={wColor}/>
                   </div>
-                  <div style={{marginTop:6}}>
-                    <div style={{display:"flex",gap:3,alignItems:"center",marginBottom:4}}>
+                  {/* Intake at bottom */}
+                  <div style={{marginTop:4}}>
+                    <div style={{fontSize:8,color:darken(wColor),opacity:0.6,textAlign:"center",marginBottom:3}}>{dayWater>=1000?(dayWater/1000).toFixed(1)+"L":dayWater+"ml"}</div>
+                    <div style={{display:"flex",gap:3,alignItems:"center"}}>
                       <input placeholder="ml/L" value={waterInput} onChange={e=>setWaterInput(e.target.value)}
                         onKeyDown={e=>{if(e.key==="Enter"){const ml=parseWaterInput(waterInput);if(ml&&ml>0){logWater(calDay,ml);setWaterInput("");}}}}
                         style={{flex:1,minWidth:0,fontSize:10,textAlign:"center",border:`1.5px solid ${border}`,borderRadius:5,padding:"4px 2px",background:"#fff",color:"#111",boxSizing:"border-box"}}/>
                       <button onClick={()=>{const ml=parseWaterInput(waterInput);if(ml&&ml>0){logWater(calDay,ml);setWaterInput("");}}}
                         style={{fontSize:11,fontWeight:700,padding:"4px 6px",borderRadius:5,border:`1.5px solid ${border}`,background:darken(wColor),color:"#fff",cursor:"pointer",flexShrink:0}}>+</button>
                     </div>
-                    <div style={{display:"flex",gap:3,alignItems:"center"}}>
-                      <span style={{fontSize:8,color:darken(wColor),opacity:0.7,flexShrink:0}}>Goal:</span>
-                      <input type="number" value={waterGoal} onChange={e=>{const v=Number(e.target.value)||2000;setWaterGoal(v);saveAndSync(K.waterGoal,"watergoal",v);}}
-                        style={{flex:1,minWidth:0,fontSize:10,textAlign:"center",border:`1.5px solid ${border}`,borderRadius:5,padding:"3px 2px",background:"#fff",color:"#111",boxSizing:"border-box"}}/>
-                      <span style={{fontSize:8,color:darken(wColor),opacity:0.7,flexShrink:0}}>ml</span>
-                    </div>
                     {dayWater>0&&<button onClick={()=>resetWater(calDay)}
-                      style={{marginTop:4,fontSize:9,fontWeight:700,padding:"3px",borderRadius:5,border:"1.5px solid #E24B4A",background:"#FAECE7",color:"#993C1D",cursor:"pointer",width:"100%"}}>↺ Reset</button>}
+                      style={{marginTop:3,fontSize:9,fontWeight:700,padding:"3px",borderRadius:5,border:"1.5px solid #E24B4A",background:"#FAECE7",color:"#993C1D",cursor:"pointer",width:"100%"}}>↺ Reset</button>}
                   </div>
                 </div>
               );
