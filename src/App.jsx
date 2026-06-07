@@ -509,6 +509,8 @@ function Journal({user,onSignOut}){
   const [mDate,setMDate]         = useState("");
   const [mealInput,setMealInput] = useState("");
   const [mealLoading,setMealLoading] = useState(false);
+  const [mealError,setMealError] = useState("");
+  const noteDebounceRef = React.useRef(null);
   const [editingQuote,setEditingQuote] = useState(null); // {id, text, author, cat}
   const [editingLyric,setEditingLyric] = useState(null); // {id, text, song, artist, img, cat}
   const [editingMemory,setEditingMemory] = useState(null); // {id, title, desc, date}
@@ -551,6 +553,7 @@ function Journal({user,onSignOut}){
     let startX=0,startY=0;
     const onStart=e=>{startX=e.touches[0].clientX;startY=e.touches[0].clientY;};
     const onEnd=e=>{
+      if(showFavMeals||confirmDelete||showSettings||showCalGoal)return;
       const dx=e.changedTouches[0].clientX-startX,dy=e.changedTouches[0].clientY-startY;
       if(Math.abs(dx)<25||Math.abs(dx)<Math.abs(dy)*1.5)return;
       setView(prev=>{const i=TAB_ORDER.indexOf(prev);if(dx<0&&i<TAB_ORDER.length-1)return TAB_ORDER[i+1];if(dx>0&&i>0)return TAB_ORDER[i-1];return prev;});
@@ -558,7 +561,7 @@ function Journal({user,onSignOut}){
     window.addEventListener("touchstart",onStart,{passive:true});
     window.addEventListener("touchend",onEnd,{passive:true});
     return()=>{window.removeEventListener("touchstart",onStart);window.removeEventListener("touchend",onEnd);};
-  },[]);
+  },[showFavMeals,confirmDelete,showSettings,showCalGoal]);
 
   const today=todayKey();
   const entry=data[activeDay]||{mood:null,habits:{},note:""};
@@ -662,7 +665,6 @@ function Journal({user,onSignOut}){
     }catch(e){console.error(e);setMealError("Couldn't find that food. Try a different name.");}
     setMealLoading(false);
   }
-  const [mealError,setMealError]=useState("");
   function saveFavMeal(meal){const f=[...favMeals,{id:Date.now(),name:meal.name,amount:meal.amount||"",cal:meal.cal,protein:meal.protein,carbs:meal.carbs,fat:meal.fat}];setFavMeals(f);saveAndSync(K.favmeals,"favmeals",f);}
   function delFavMeal(id){const f=favMeals.filter(x=>x.id!==id);setFavMeals(f);saveAndSync(K.favmeals,"favmeals",f);}
   function saveEditFavMeal(){if(!editingFavMeal)return;const f=favMeals.map(x=>x.id===editingFavMeal.id?{...x,...editingFavMeal}:x);setFavMeals(f);saveAndSync(K.favmeals,"favmeals",f);setEditingFavMeal(null);}
@@ -796,7 +798,12 @@ function Journal({user,onSignOut}){
           </div>
           <div style={card("notes")}>
             <span style={{fontSize:10,fontWeight:700,display:"block",marginBottom:5}}>NOTES</span>
-            <textarea value={entry.note||""} onChange={e=>upEntry({note:e.target.value})} placeholder="Write anything on your mind..."
+            <textarea value={entry.note||""} onChange={e=>{
+              const val=e.target.value;
+              upEntry({note:val});
+              if(noteDebounceRef.current)clearTimeout(noteDebounceRef.current);
+              noteDebounceRef.current=setTimeout(()=>syncToCloud("data",{...data,[activeDay]:{...entry,note:val}}),1000);
+            }} placeholder="Write anything on your mind..."
               style={{width:"100%",minHeight:80,resize:"vertical",borderRadius:6,border:`1.5px solid ${C("notes")}`,padding:"8px",fontSize:13,color:"#111",background:"#fff",boxSizing:"border-box",fontFamily:"system-ui,sans-serif"}}/>
           </div>
         </div>
